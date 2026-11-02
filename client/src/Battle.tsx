@@ -1,3 +1,4 @@
+import { CONSUMABLES, itemUnavailable } from "../../shared/items";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   CHARACTERS,
@@ -47,6 +48,25 @@ export function Battle({
     }
     audibleVersion.current = key;
   }, [battle?.id, battle?.version]);
+  const [items, setItems] = useState<Record<string, number> | null>(null), [itemError, setItemError] = useState("");
+  const itemReads = useRef(0);
+  const loadItems = useCallback(async () => {
+    const revision = ++itemReads.current;
+    try {
+      const r = await fetch("/api/battle/items"), data = await r.json();
+      if (!r.ok) throw new Error(data.error);
+      if (revision === itemReads.current) { setItems(Object.fromEntries(data.items.map((i: { itemId: string; quantity: number }) => [i.itemId, i.quantity]))); setItemError(""); }
+    } catch (e) { if (revision === itemReads.current) setItemError(e instanceof Error ? e.message : "소지품을 불러오지 못했습니다."); }
+  }, []);
+  useEffect(() => {
+    if (battle) void loadItems(); else { itemReads.current++; setItems(null); }
+  }, [battle?.id, battle?.version, loadItems]);
+  useEffect(() => {
+    if (!battle) return;
+    const update = () => { void loadItems(); };
+    window.addEventListener("economy:changed", update);
+    return () => { itemReads.current++; window.removeEventListener("economy:changed", update); };
+  }, [battle?.id, loadItems]);
   const pending = useRef(false);
   const changes = useRef(0);
   const apply = useCallback((value: BattleState | null) => {
@@ -396,6 +416,17 @@ export function Battle({
                 </button>
               )}
             </div>
+            <section className="battle-items" aria-label="전투 아이템">
+              <h3>전투 아이템 · 자기 출전 캐릭터 · 행동1회 소비</h3>
+              <div className="item-actions">{Object.values(CONSUMABLES).map((item) => <button key={item.id}
+                disabled={busy || coopLocked || replacement || restricted || !items || (items[item.id] ?? 0) < 1 || Boolean(itemUnavailable(active, item.id))}
+                onClick={() => act({ type: "item", itemId: item.id })}>
+                <b>{item.name} · {items ? items[item.id] ?? 0 : "…"}개</b><small>{item.description}</small>
+                <small>{itemUnavailable(active, item.id) || (items && !(items[item.id] ?? 0) ? "보유 수량이 없습니다." : "")}</small>
+              </button>)}</div>
+              <p>감전 등으로 행동하지 못하면 소비하지 않습니다. 협동전 선택 대기/이탈/취소도 효과가 실행되기 전에는 소비하지 않습니다.</p>
+              {itemError && <p>{itemError}<button onClick={() => { void loadItems(); }}>소지품 다시 불러오기</button></p>}
+            </section>
             {ultimate && (
               <button
                 className="ultimate-button"

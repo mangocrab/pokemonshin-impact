@@ -98,6 +98,7 @@ export function Game({
         setBusy(false);
       }
     }
+    socket.on("economy:changed", () => window.dispatchEvent(new Event("economy:changed")));
     socket.on("characters:changed", () =>
       window.dispatchEvent(new Event("characters:changed")),
     );

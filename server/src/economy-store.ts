@@ -11,6 +11,8 @@ export async function ensureEconomy(
   if (created.count) {
     await tx.inventory.createMany({
       data: [
+        { userId, itemId: "summer-tonic", quantity: 4 },
+        { userId, itemId: "cleansing-salt", quantity: 2 },
         { userId, itemId: "training-book", quantity: 20 },
         { userId, itemId: "weapon-ore", quantity: 10 },
         { userId, itemId: "growth-stone", quantity: 15 },
@@ -52,6 +54,8 @@ export async function grantLoot(
     },
   });
   for (const [id, amount] of [
+    ["summer-tonic", 1],
+    ...(cooperative ? [["cleansing-salt", 1] as const] : []),
     ["training-book", 1],
     ["weapon-ore", 2],
     ["growth-stone", 2],

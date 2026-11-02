@@ -1,3 +1,4 @@
+import { CONSUMABLES, consumable } from "../../shared/items";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CHARACTERS } from "../../shared/combat";
 import {
@@ -500,9 +501,16 @@ export function Collection({
                         </section>
                       ))}
                     </div>
+                    <section className="supply-shop" aria-label="전투 소모품 보급">
+                      <h3>전투 소모품 보급</h3><p>조개로 보급합니다. 전투·협동 모집 중에는 구입할 수 없습니다.</p>
+                      <div className="weapon-list">{Object.values(CONSUMABLES).map((item) => <section key={item.id}>
+                        <b>{item.name} · 보유 {quantity(item.id)}개</b><p>{item.description}</p><p>1개 조개 {item.price}</p>
+                        {[1, 5].map((count) => <button key={count} disabled={busy || state.wallet.shell < item.price * count} onClick={() => send("supplies", { itemId: item.id, count })}>{item.name} {count}개 구입</button>)}
+                      </section>)}</div>
+                    </section>
                     <h3>성장 재료</h3>
                     <div className="inventory-grid">
-                      {state.inventory.map((i) => (
+                      {state.inventory.filter((i) => !consumable(i.itemId)).map((i) => (
                         <div key={i.itemId}>
                           {materialName(i.itemId)} <b>{i.quantity}</b>
                         </div>

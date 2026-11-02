@@ -624,6 +624,7 @@ export type Fighter = Stats & {
 export type BattleAction =
   | { type: "skill"; skillId: string }
   | { type: "ultimate" }
+  | { type: "item"; itemId: string }
   | { type: "switch"; slot: number }
   | { type: "defend" }
   | { type: "flee" }
@@ -631,6 +632,8 @@ export type BattleAction =
   | { type: "continue" };
 export type BattleStatus = "active" | "won" | "lost" | "fled" | "abandoned";
 export type BattleState = {
+  /** Transient resolution events, drained before persistence/publication. */
+  itemUses?: string[];
   coop?: CoopView;
   reward?: {
     experience: number;

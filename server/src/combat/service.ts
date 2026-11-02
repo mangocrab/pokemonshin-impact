@@ -1,3 +1,5 @@
+import { requireConsumable, consumeItems } from "./items.js";
+import { ensureEconomy } from "../economy-store.js";
 import { recordWorldVictory } from "../story-store.js";
 import { activeCoop, currentCoopView } from "./coop.js";
 import { roster, awardVictory, setTrainingNotifier } from "../training.js";
@@ -27,6 +29,7 @@ import {
 } from "../../../shared/combat.js";
 const json = (value: unknown) => value as Prisma.InputJsonValue;
 const actionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("item"), itemId: z.enum(["summer-tonic", "cleansing-salt"]) }).strict(),
   z.object({ type: z.literal("skill"), skillId: z.string().min(1).max(50) }),
   z.object({ type: z.literal("switch"), slot: z.number().int().min(0).max(3) }),
   z.object({ type: z.literal("ultimate") }),
@@ -65,11 +68,17 @@ export function registerCombat(io: Server) {
         : await currentCoopView(res.locals.user.id),
     });
   });
+  router.get("/items", async (_req, res) => {
+    const userId = res.locals.user.id;
+    await db.$transaction((tx) => ensureEconomy(tx, userId));
+    res.json({ items: await db.inventory.findMany({ where: { userId, itemId: { in: ["summer-tonic", "cleansing-salt"] } }, select: { itemId: true, quantity: true } }) });
+  });
   router.get("/characters", async (_req, res) => {
     res.json({ characters: await roster(res.locals.user.id) });
   });
   router.post("/:operation", async (req, res, next) => {
     try {
+      let itemConsumed = false;
       const result = await serial(async () => {
         const u = res.locals.user,
           actor = await getActor(u.id);
@@ -147,12 +156,13 @@ export function registerCombat(io: Server) {
             "이미 처리된 행동입니다. 최신 전투 상태를 확인하세요.",
           );
         const previous = current.state as unknown as BattleState;
-        const state = resolveBattle(
-          previous,
-          parsed.action,
-          () => randomInt(0, 0x100000000) / 0x100000000,
-        );
-        await db.$transaction(async (tx) => {
+        const state = await db.$transaction(async (tx) => {
+          if (parsed.action.type === "item") await requireConsumable(tx, u.id, parsed.action.itemId);
+          const state = resolveBattle(previous, parsed.action, () => randomInt(0, 0x100000000) / 0x100000000);
+          const uses = state.itemUses ?? [];
+          itemConsumed = uses.length > 0;
+          await consumeItems(tx, uses.map((itemId) => ({ userId: u.id, itemId })));
+          delete state.itemUses;
           if (state.status === "won")
             state.reward = await awardVictory(
               tx,
@@ -186,11 +196,13 @@ export function registerCombat(io: Server) {
               log: json(state.log),
             },
           });
+          return state;
         });
         actor.battleId = state.status === "active" ? state.id : undefined;
         return state;
       });
       io.to(`personal:${res.locals.user.id}`).emit("battle:state", result);
+      if (itemConsumed) io.to(`personal:${res.locals.user.id}`).emit("economy:changed");
       if (result.reward)
         io.to(`personal:${res.locals.user.id}`).emit("characters:changed");
       res.json({ battle: result });

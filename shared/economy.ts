@@ -1,3 +1,4 @@
+import { consumable } from "./items.js";
 import type { Element } from "./combat.js";
 export type WeaponDefinition = {
   id: string;
@@ -118,6 +119,7 @@ export function materialId(id: string) {
   return "ascension-" + id;
 }
 export function materialName(id: string) {
+  if (consumable(id)) return consumable(id)!.name;
   return id.startsWith("ascension-")
     ? (MATERIAL_NAMES[id.slice(10)] ?? id)
     : (MATERIAL_NAMES[id] ?? id);

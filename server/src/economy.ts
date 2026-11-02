@@ -1,3 +1,4 @@
+import { CONSUMABLES, type ConsumableId } from "../../shared/items.js";
 import { Router } from "express";
 import { Prisma } from "@prisma/client";
 import { randomInt, createHash } from "node:crypto";
@@ -25,6 +26,7 @@ const base = z.object({
   expectedRevision: z.number().int().nonnegative(),
 });
 const schemas: Record<string, z.ZodTypeAny> = {
+  supplies: base.extend({ itemId: z.enum(["summer-tonic", "cleansing-salt"]), count: z.number().int().min(1).max(10) }).strict(),
   pull: base
     .extend({
       count: z.union([z.literal(1), z.literal(10)]),
@@ -152,7 +154,11 @@ economyRouter.post("/:operation", async (req, res, next) => {
             shellCost = 0,
             dustGain = 0;
           const details: any = { operation };
-          if (operation === "pull") {
+          if (operation === "supplies") {
+            shellCost = CONSUMABLES[body.itemId as ConsumableId].price * body.count;
+            await addItem(tx, userId, body.itemId, body.count);
+            details.itemId = body.itemId; details.count = body.count;
+          } else if (operation === "pull") {
             conchCost = BANNER.cost * body.count;
             if (wallet.conch < conchCost)
               throw new WorldError(409, "소라가 부족합니다.");

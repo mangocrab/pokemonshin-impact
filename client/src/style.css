@@ -1080,3 +1080,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:3px so
 .rune-buttons button { display:flex; flex-direction:column; align-items:center; gap:8px; }
 .rune-buttons button span { font-size:30px; }
 .puzzle-clue { padding:18px; border-left:3px solid #a8b6cd; background:#eef1f5; }
+.battle-items { background:#eef3e8; padding:16px; margin:18px 0; border-radius:12px; }
+.item-actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.item-actions button { display:flex; flex-direction:column; text-align:left; gap:6px; margin-top:0; }
+.item-actions small { display:block; letter-spacing:0; line-height:1.6; }
+.battle-items p { font-size:11px; color:#60756a; }
+.supply-shop { margin:22px 0; }
+.supply-shop button { margin-right:8px; }
+@media(max-width:760px) { .item-actions { grid-template-columns:1fr; } }

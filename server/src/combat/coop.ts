@@ -1,3 +1,4 @@
+import { requireConsumable, consumeItems } from "./items.js";
 import { recordWorldVictory } from "../story-store.js";
 import { grantLoot } from "../economy-store.js";
 import { Router } from "express";
@@ -38,6 +39,7 @@ const json = (value: unknown) =>
   JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 const rng = () => randomInt(0, 0x100000000) / 0x100000000;
 const actionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("item"), itemId: z.enum(["summer-tonic", "cleansing-salt"]) }).strict(),
   z.object({ type: z.literal("skill"), skillId: z.string().min(1).max(50) }),
   z.object({ type: z.literal("ultimate") }),
   z.object({ type: z.literal("switch"), slot: z.number().int().min(0).max(3) }),
@@ -69,10 +71,13 @@ async function publish(s: CoopState) {
 }
 async function save(
   s: CoopState,
-  resolvedRound?: { round: number; actions: unknown },
+  resolvedRound?: { round: number; actions: unknown; itemUses?: { userId: string; itemId: string }[] },
+  selection?: { userId: string; itemId: string },
 ) {
   await db.$transaction(
     async (tx) => {
+      if (selection) await requireConsumable(tx, selection.userId, selection.itemId);
+      await consumeItems(tx, resolvedRound?.itemUses ?? []);
       if (s.status === "won")
         for (const m of s.members.filter((m) => m.ready && !m.left)) {
           await tx.coopReward.create({
@@ -129,6 +134,7 @@ async function save(
       actor.battleId = undefined;
   }
   await publish(s);
+  for (const userId of new Set((resolvedRound?.itemUses ?? []).map((u) => u.userId))) channel.to(`personal:${userId}`).emit("economy:changed");
 }
 function startReady(s: CoopState) {
   const members = s.members.filter((m) => !m.left);
@@ -177,6 +183,8 @@ export function resolveIfReady(s: CoopState, random = rng) {
     random,
     true,
   );
+  const itemUses = active.flatMap((m) => (m.state.itemUses ?? []).map((itemId) => ({ userId: m.userId, itemId })));
+  for (const m of s.members) delete m.state.itemUses;
   s.log = log;
   s.round++;
   s.deadline = Date.now() + 60000;
@@ -184,7 +192,7 @@ export function resolveIfReady(s: CoopState, random = rng) {
     s.status = active[0].state.status;
   for (const m of s.members) m.choice = null;
   autoChoices(s);
-  return { round: previous, actions };
+  return { round: previous, actions, itemUses };
 }
 export async function withdrawCoop(userId: string) {
   const s = await activeCoop(userId);
@@ -439,7 +447,7 @@ export function registerCoop(io: Server) {
           member.state.enemy = s.enemy;
         } else member.choice = body.action;
         const resolved = resolveIfReady(s);
-        await save(s, resolved);
+        await save(s, resolved, body.action.type === "item" ? { userId: u.id, itemId: body.action.itemId } : undefined);
         return coopView(s, u.id);
       });
       res.json({ battle: result });

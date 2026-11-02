@@ -1,3 +1,4 @@
+import { consumable, itemUnavailable } from "../../../shared/items.js";
 import {
   type BattleState,
   type BattleAction,
@@ -226,6 +227,10 @@ export function validateBattleAction(state: BattleState, action: BattleAction) {
     );
     if (reason) throw new BattleRuleError(reason);
   }
+  if (action.type === "item") {
+    const reason = itemUnavailable(active, action.itemId);
+    if (reason) throw new BattleRuleError(reason);
+  }
   if (action.type === "ultimate") {
     const skill = ULTIMATES[active.ultimateId];
     if (!skill) throw new BattleRuleError("궁극기가 없습니다.");
@@ -243,7 +248,7 @@ function chosenSkill(f: Fighter, action: BattleAction) {
 function priority(action: BattleAction, skill?: Skill) {
   return action.type === "flee"
     ? 9
-    : action.type === "switch" || action.type === "defend"
+    : action.type === "switch" || action.type === "defend" || action.type === "item"
       ? 6
       : (skill?.priority ?? 0);
 }
@@ -256,6 +261,7 @@ export function resolveBattle(
     throw new BattleRuleError("이미 종료된 전투입니다.");
   const state = normalizeBattle(previous),
     active = state.team[state.activeSlot];
+  delete state.itemUses;
   validateBattleAction(state, action);
   state.version++;
   const log: string[] = [];
@@ -291,6 +297,7 @@ export function resolveRound(
   cooperative = false,
 ) {
   const log: string[] = [];
+  for (const p of players) delete p.state.itemUses;
   const root = players[0].state;
   const state = root;
   const enemySkill =
@@ -396,6 +403,21 @@ export function resolveRound(
       log.push(
         `${user.name}이(가) 방어합니다. 이번 라운드 받는 피해가 절반입니다.`,
       );
+      continue;
+    }
+    if (turn.action.type === "item") {
+      const item = consumable(turn.action.itemId);
+      const reason = itemUnavailable(user, turn.action.itemId);
+      if (!item || reason) { log.push(`${user.name}: ${reason} 아이템은 소비하지 않았습니다.`); continue; }
+      if (item.effect === "heal") {
+        const recovered = Math.min(user.maxHp - user.hp, Math.max(1, Math.floor(user.maxHp * 0.5)));
+        user.hp += recovered;
+        log.push(`${user.name} · ${item.name}: HP ${recovered} 회복 · 아이템1개 소비`);
+      } else {
+        removeStatuses(user, state.round);
+        log.push(`${user.name} · ${item.name}: 상태이상 해제 · 아이템1개 소비`);
+      }
+      (state.itemUses ??= []).push(item.id);
       continue;
     }
     const skill = turn.skill!;
