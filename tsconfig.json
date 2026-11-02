@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": [
+      "node"
+    ]
+  },
+  "include": [
+    "client",
+    "server",
+    "shared",
+    "tests",
+    "vite.config.ts",
+    "playwright.config.ts",
+    "scripts/balance.ts",
+    "scripts/coop-balance.ts",
+    "scripts/balance-growth.ts"
+  ]
+}

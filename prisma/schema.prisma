@@ -1,0 +1,281 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url = env("DATABASE_URL")
+}
+model User {
+  id String @id @default(cuid())
+  username String @unique
+  passwordHash String
+  nickname String
+  createdAt DateTime @default(now())
+  sentFriends Friend[] @relation("FriendSender")
+  receivedFriends Friend[] @relation("FriendReceiver")
+  sentEntries WorldEntry[] @relation("EntrySender")
+  receivedEntries WorldEntry[] @relation("EntryReceiver")
+  hostedEntries WorldEntry[] @relation("EntryHost")
+  characters UserCharacter[]
+  battles Battle[]
+  rewards BattleReward[]
+  ownedCoopBattles CoopBattle[]
+  coopMemberships CoopMember[]
+  coopRewards CoopReward[]
+  wallet Wallet?
+  inventory Inventory[]
+  weapons UserWeapon[]
+  pity GachaPity[]
+  pulls GachaHistory[]
+  economyMutations EconomyMutation[]
+  world World?
+  settings UserSettings?
+  sessions Session[]
+}
+model Session {
+  id String @id
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  @@index([expiresAt])
+}
+model World {
+  id String @id @default(cuid())
+  ownerId String @unique
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  positionX Float @default(800)
+  positionY Float @default(560)
+  openedChests WorldChest[]
+  quests WorldQuest[]
+  access String @default("invite")
+  progress Json @default("{}")
+  createdAt DateTime @default(now())
+}
+
+model WorldChest {
+  worldId String
+  chestId String
+  openedAt DateTime @default(now())
+  world World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  @@id([worldId, chestId])
+}
+
+model Friend {
+  id String @id @default(cuid())
+  senderId String
+  receiverId String
+  sender User @relation("FriendSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("FriendReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  status String @default("pending")
+  createdAt DateTime @default(now())
+  @@unique([senderId, receiverId])
+}
+model WorldEntry {
+  id String @id @default(cuid())
+  kind String
+  senderId String
+  receiverId String
+  hostId String
+  sender User @relation("EntrySender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver User @relation("EntryReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  host User @relation("EntryHost", fields: [hostId], references: [id], onDelete: Cascade)
+  status String @default("pending")
+  createdAt DateTime @default(now())
+  @@index([receiverId, status])
+}
+
+model UserCharacter {
+  userId String
+  characterId String
+  slot Int?
+  copies Int @default(1)
+  liberation Int @default(0)
+  liberationTokens Int @default(0)
+  liberationGranted Int @default(0)
+  ascension Int @default(0)
+  skillLevel Int @default(1)
+  equippedWeapons UserWeapon[]
+  level Int @default(1)
+  experience Int @default(0)
+  revision Int @default(0)
+  trainingInitialized Boolean @default(false)
+  unlocks CharacterSkillUnlock[]
+  equippedSkills CharacterEquippedSkill[]
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([userId, characterId])
+  @@unique([userId, slot])
+}
+model Battle {
+  id String @id @default(cuid())
+  userId String
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  worldId String
+  activeUserId String? @unique
+  status String @default("active")
+  version Int @default(0)
+  state Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rounds BattleRound[]
+  reward BattleReward?
+  @@index([userId, createdAt])
+}
+model BattleRound {
+  battleId String
+  version Int
+  round Int
+  action Json
+  log Json
+  battle Battle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  @@id([battleId, version])
+}
+
+model CharacterSkillUnlock {
+  userId String
+  characterId String
+  skillId String
+  decision String @default("pending")
+  unlockedAt DateTime @default(now())
+  character UserCharacter @relation(fields: [userId, characterId], references: [userId, characterId], onDelete: Cascade)
+  equipped CharacterEquippedSkill[]
+  @@id([userId, characterId, skillId])
+}
+model CharacterEquippedSkill {
+  userId String
+  characterId String
+  slot Int
+  skillId String
+  character UserCharacter @relation(fields: [userId, characterId], references: [userId, characterId], onDelete: Cascade)
+  unlock CharacterSkillUnlock @relation(fields: [userId, characterId, skillId], references: [userId, characterId, skillId], onDelete: Cascade)
+  @@id([userId, characterId, slot])
+  @@unique([userId, characterId, skillId])
+}
+model BattleReward {
+  battleId String @id
+  userId String
+  experience Int
+  createdAt DateTime @default(now())
+  battle Battle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model CoopBattle {
+  id String @id
+  owner User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  ownerId String
+  worldId String
+  status String @default("lobby")
+  version Int @default(0)
+  state Json
+  deadline DateTime
+  createdAt DateTime @default(now())
+  members CoopMember[]
+  rounds CoopRound[]
+  rewards CoopReward[]
+  @@index([status, deadline])
+}
+model CoopMember {
+  battleId String
+  userId String
+  activeUserId String? @unique
+  battle CoopBattle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([battleId,userId])
+}
+model CoopRound {
+  battleId String
+  round Int
+  actions Json
+  log Json
+  battle CoopBattle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  @@id([battleId,round])
+}
+model CoopReward {
+  battleId String
+  userId String
+  experience Int
+  battle CoopBattle @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  @@id([battleId,userId])
+}
+
+model Wallet {
+ userId String @id
+ conch Int @default(3200)
+ shell Int @default(10000)
+ dust Int @default(0)
+ revision Int @default(0)
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+}
+model Inventory {
+ userId String
+ itemId String
+ quantity Int
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@id([userId,itemId])
+}
+model UserWeapon {
+ id String @id @default(cuid())
+ userId String
+ weaponId String
+ level Int @default(1)
+ equippedCharacterId String?
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ character UserCharacter? @relation(fields:[userId,equippedCharacterId],references:[userId,characterId],onDelete:Cascade)
+ @@unique([userId,equippedCharacterId])
+}
+model GachaPity {
+ userId String
+ bannerId String
+ five Int @default(0)
+ four Int @default(0)
+ guaranteed Boolean @default(false)
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@id([userId,bannerId])
+}
+model GachaHistory {
+ id String @id @default(cuid())
+ userId String
+ bannerId String
+ kind String
+ itemId String
+ rarity Int
+ featured Boolean
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@index([userId,createdAt])
+}
+model EconomyMutation {
+ userId String
+ requestId String
+ operation String
+ hash String
+ result Json
+ createdAt DateTime @default(now())
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ @@id([userId,requestId])
+}
+
+model UserSettings {
+  userId String @id
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quality String @default("high")
+  lighting Boolean @default(true)
+  shadows Boolean @default(true)
+  ambientEffects Boolean @default(true)
+  reducedMotion Boolean @default(false)
+  muted Boolean @default(true)
+  volume Int @default(40)
+  revision Int @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+model WorldQuest {
+  worldId String
+  questId String
+  world World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  progress Int @default(0)
+  acceptedAt DateTime @default(now())
+  claimedAt DateTime?
+  @@id([worldId, questId])
+}

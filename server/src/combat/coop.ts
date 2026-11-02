@@ -1,0 +1,464 @@
+import { recordWorldVictory } from "../story-store.js";
+import { grantLoot } from "../economy-store.js";
+import { Router } from "express";
+import { randomInt, randomUUID } from "node:crypto";
+import type { Server } from "socket.io";
+import { Prisma } from "@prisma/client";
+import { z } from "zod";
+import { authenticate, db } from "../auth.js";
+import {
+  serial,
+  getActor,
+  onlineActors,
+  setCombatDeparture,
+  WorldError,
+} from "../exploration.js";
+import { roster, grantExperience } from "../training.js";
+import {
+  ENCOUNTER,
+  type BattleAction,
+  type BattleState,
+  blockedReason,
+} from "../../../shared/combat.js";
+import {
+  type CoopState,
+  coopView,
+  autoChoices,
+  livingMembers,
+} from "../../../shared/coop.js";
+import {
+  createBattle,
+  normalizeBattle,
+  resolveBattle,
+  resolveRound,
+  validateBattleAction,
+  BattleRuleError,
+} from "./engine.js";
+const json = (value: unknown) =>
+  JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
+const rng = () => randomInt(0, 0x100000000) / 0x100000000;
+const actionSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("skill"), skillId: z.string().min(1).max(50) }),
+  z.object({ type: z.literal("ultimate") }),
+  z.object({ type: z.literal("switch"), slot: z.number().int().min(0).max(3) }),
+  z.object({ type: z.literal("defend") }),
+  z.object({ type: z.literal("wait") }),
+  z.object({ type: z.literal("continue") }),
+]);
+let channel: Server;
+let recovered = false;
+export async function activeCoop(userId: string) {
+  const m = await db.coopMember.findUnique({
+    where: { activeUserId: userId },
+    include: { battle: true },
+  });
+  return m?.battle.state as unknown as CoopState | undefined;
+}
+export async function currentCoopView(userId: string) {
+  const s = await activeCoop(userId);
+  return s ? coopView(s, userId) : null;
+}
+async function publish(s: CoopState) {
+  for (const m of s.members) {
+    channel
+      .to(`personal:${m.userId}`)
+      .emit("battle:state", coopView(s, m.userId));
+    if (s.status === "won" && !m.left)
+      channel.to(`personal:${m.userId}`).emit("characters:changed");
+  }
+}
+async function save(
+  s: CoopState,
+  resolvedRound?: { round: number; actions: unknown },
+) {
+  await db.$transaction(
+    async (tx) => {
+      if (s.status === "won")
+        for (const m of s.members.filter((m) => m.ready && !m.left)) {
+          await tx.coopReward.create({
+            data: { battleId: s.id, userId: m.userId, experience: 120 },
+          });
+          await grantLoot(
+            tx,
+            m.userId,
+            m.state.team.map((f) => f.id),
+            true,
+          );
+          m.state.reward = await grantExperience(
+            tx,
+            m.userId,
+            m.state.team.map((f) => f.id),
+            120,
+          );
+        }
+      if (s.status === "won" && s.members.some((m) => m.userId === s.ownerId && m.ready && !m.left))
+        await recordWorldVictory(tx, s.worldId);
+      const updated = await tx.coopBattle.updateMany({
+        where: { id: s.id, version: s.version },
+        data: {
+          version: s.version + 1,
+          status: s.status,
+          deadline: new Date(s.deadline),
+          state: json({ ...s, version: s.version + 1 }),
+        },
+      });
+      if (updated.count !== 1)
+        throw new WorldError(409, "협동 전투 정보가 갱신되었습니다.");
+      if (resolvedRound)
+        await tx.coopRound.create({
+          data: {
+            battleId: s.id,
+            round: resolvedRound.round,
+            actions: json(resolvedRound.actions),
+            log: json(s.log),
+          },
+        });
+      for (const m of s.members)
+        if (m.left || !["lobby", "active"].includes(s.status))
+          await tx.coopMember.update({
+            where: { battleId_userId: { battleId: s.id, userId: m.userId } },
+            data: { activeUserId: null },
+          });
+    },
+    { timeout: 15000 },
+  );
+  s.version++;
+  for (const m of s.members) {
+    const actor = await getActor(m.userId);
+    if (actor && (m.left || !["lobby", "active"].includes(s.status)))
+      actor.battleId = undefined;
+  }
+  await publish(s);
+}
+function startReady(s: CoopState) {
+  const members = s.members.filter((m) => !m.left);
+  if (members.length < 2) return false;
+  if (!members.every((m) => m.ready)) return false;
+  s.status = "active";
+  s.enemy.maxHp = s.enemy.hp = Math.round(
+    220 * (1 + 0.8 * (members.length - 1)),
+  );
+  s.enemy.attack = Math.round(36 * (1 + 0.15 * (members.length - 1)));
+  s.enemy.name = "산호 수호게";
+  s.enemy.statusImmunities = ["freeze"];
+  s.enemy.statusResistance = { burn: 0.25, shock: 0.25 };
+  s.deadline = Date.now() + 60000;
+  s.log = [
+    "협동 보스전 시작! 모두 행동을 선택하세요. 3라운드마다 광역 공격을 사용합니다.",
+  ];
+  autoChoices(s);
+  return true;
+}
+export function resolveIfReady(s: CoopState, random = rng) {
+  autoChoices(s);
+  const members = livingMembers(s);
+  if (!members.length) {
+    s.status = "lost";
+    s.log = ["모두 쓰러져 협동 전투가 종료되었습니다."];
+    return undefined;
+  }
+  if (members.some((m) => !m.choice || m.state.phase === "replacement"))
+    return undefined;
+  const previous = s.round;
+  const actions = members.map((m) => ({ userId: m.userId, action: m.choice }));
+  const active = s.members.filter((m) => m.ready && !m.left);
+  for (const m of active) {
+    m.state.enemy = s.enemy;
+    m.state.round = s.round;
+  }
+  const log = resolveRound(
+    active.map((m) => ({
+      key: m.userId,
+      state: m.state,
+      action: m.choice ?? { type: "wait" },
+    })),
+    s.enemy,
+    s.round,
+    random,
+    true,
+  );
+  s.log = log;
+  s.round++;
+  s.deadline = Date.now() + 60000;
+  if (active[0].state.status === "won" || active[0].state.status === "lost")
+    s.status = active[0].state.status;
+  for (const m of s.members) m.choice = null;
+  autoChoices(s);
+  return { round: previous, actions };
+}
+export async function withdrawCoop(userId: string) {
+  const s = await activeCoop(userId);
+  if (!s) return;
+  const m = s.members.find((m) => m.userId === userId)!;
+  m.left = true;
+  m.choice = null;
+  let resolved;
+  if (s.ownerId === userId) {
+    s.status = "abandoned";
+    s.log = ["소유자가 전투를 종료하여 협동 전투가 취소되었습니다."];
+  } else if (s.status === "lobby") {
+    if (s.members.filter((m) => !m.left).length < 2) {
+      s.status = "abandoned";
+      s.log = ["참가자가 부족하여 모집이 취소되었습니다."];
+    } else startReady(s);
+  } else {
+    resolved = resolveIfReady(s);
+    if (s.status === "active" && !resolved)
+      s.log = [
+        `${m.nickname}이(가) 나갔습니다. 남은 참가자가 계속 진행합니다.`,
+      ];
+  }
+  await save(s, resolved);
+}
+export async function recoverCoop() {
+  const rows = await db.coopBattle.findMany({
+    where: { status: { in: ["lobby", "active"] } },
+  });
+  await db.$transaction(async (tx) => {
+    for (const row of rows) {
+      const s = row.state as unknown as CoopState;
+      s.status = "abandoned";
+      s.version++;
+      s.log = ["서버 재시작으로 협동 전투가 안전하게 종료되었습니다."];
+      await tx.coopBattle.update({
+        where: { id: row.id },
+        data: { status: "abandoned", version: s.version, state: json(s) },
+      });
+    }
+    await tx.coopMember.updateMany({
+      where: { activeUserId: { not: null } },
+      data: { activeUserId: null },
+    });
+  });
+  recovered = true;
+}
+export async function expireCoop(id: string, now = Date.now()) {
+  const record = await db.coopBattle.findUnique({ where: { id } });
+  if (
+    !record ||
+    !["lobby", "active"].includes(record.status) ||
+    record.deadline.getTime() > now
+  )
+    return;
+  const s = record.state as unknown as CoopState;
+  if (s.status === "lobby") {
+    s.status = "abandoned";
+    s.log = ["참여 확인 시간이 만료되었습니다."];
+    await save(s);
+    return;
+  }
+  for (const m of livingMembers(s)) {
+    if (m.state.phase === "replacement") {
+      const slot = m.state.team.findIndex((f) => f.hp > 0);
+      delete m.state.team[m.state.activeSlot].preparing;
+      m.state.activeSlot = slot;
+      m.state.phase = "choice";
+    }
+    if (!m.choice) {
+      const f = m.state.team[m.state.activeSlot];
+      m.choice = blockedReason(f, s.round)
+        ? { type: "wait" }
+        : f.preparing
+          ? { type: f.preparing.readyRound > s.round ? "wait" : "continue" }
+          : { type: "defend" };
+    }
+  }
+  const resolved = resolveIfReady(s);
+  s.log.push("선택 제한시간이 지나 미선택 행동을 자동 처리했습니다.");
+  await save(s, resolved);
+}
+export function registerCoop(io: Server) {
+  channel = io;
+  setCombatDeparture(withdrawCoop);
+  const timer = setInterval(() => {
+    if (!recovered) return;
+    void serial(async () => {
+      const due = await db.coopBattle.findMany({
+        where: {
+          status: { in: ["lobby", "active"] },
+          deadline: { lte: new Date() },
+        },
+      });
+      for (const row of due) await expireCoop(row.id);
+    }).catch((error) =>
+      console.error(
+        "Co-op deadline failed:",
+        error instanceof Error ? error.message : "unknown",
+      ),
+    );
+  }, 1000);
+  timer.unref();
+  const router = Router();
+  router.use(async (req, res, next) => {
+    const user = await authenticate(req);
+    if (!user?.world) {
+      res.status(401).json({ error: "로그인이 필요합니다." });
+      return;
+    }
+    res.locals.user = user;
+    next();
+  });
+  router.get("/", async (_req, res) =>
+    res.json({ battle: await currentCoopView(res.locals.user.id) }),
+  );
+  router.post("/:operation", async (req, res, next) => {
+    try {
+      const result = await serial(async () => {
+        const u = res.locals.user,
+          actor = await getActor(u.id);
+        if (!actor?.sockets.size)
+          throw new WorldError(409, "월드에 먼저 접속하세요.");
+        if (req.params.operation === "start") {
+          if (actor.worldId !== actor.homeWorldId)
+            throw new WorldError(
+              403,
+              "월드 소유자만 협동 전투를 모집할 수 있습니다.",
+            );
+          if (req.body?.encounterId !== ENCOUNTER.id)
+            throw new WorldError(400, "알 수 없는 적입니다.");
+          const candidates = (await onlineActors())
+            .filter(
+              (a) =>
+                a.worldId === actor.worldId &&
+                Math.hypot(
+                  a.position.x - ENCOUNTER.x,
+                  a.position.y - ENCOUNTER.y,
+                ) <= 64,
+            )
+            .sort((a, b) =>
+              a.userId === u.id
+                ? -1
+                : b.userId === u.id
+                  ? 1
+                  : a.userId.localeCompare(b.userId),
+            );
+          if (
+            !candidates.some((a) => a.userId === u.id) ||
+            candidates.length < 2 ||
+            candidates.length > 4
+          )
+            throw new WorldError(
+              409,
+              "적 근처에 소유자를 포함한 2~4명이 있어야 합니다.",
+            );
+          for (const a of candidates)
+            if (
+              a.battleId ||
+              (await db.battle.findUnique({
+                where: { activeUserId: a.userId },
+              })) ||
+              (await activeCoop(a.userId))
+            )
+              throw new WorldError(409, "이미 전투 중인 참가자가 있습니다.");
+          const id = randomUUID(),
+            members = [];
+          for (const a of candidates) {
+            const state = createBattle(
+              id,
+              (await roster(a.userId))
+                .filter((c) => c.slot !== null)
+                .sort((a, b) => a.slot! - b.slot!)
+                .slice(0, 4),
+            );
+            members.push({
+              userId: a.userId,
+              nickname: a.nickname,
+              ready: a.userId === u.id,
+              left: false,
+              state,
+              choice: null,
+            });
+          }
+          const s: CoopState = {
+            id,
+            ownerId: u.id,
+            worldId: actor.worldId,
+            version: 0,
+            round: 1,
+            status: "lobby",
+            deadline: Date.now() + 60000,
+            enemy: createBattle(id).enemy,
+            members,
+            log: ["협동 전투 참여를 확인하세요. 수락한 참가자만 시작합니다."],
+          };
+          await db.coopBattle.create({
+            data: {
+              id,
+              ownerId: u.id,
+              worldId: actor.worldId,
+              deadline: new Date(s.deadline),
+              state: json(s),
+              members: {
+                create: candidates.map((a) => ({
+                  userId: a.userId,
+                  activeUserId: a.userId,
+                })),
+              },
+            },
+          });
+          for (const a of candidates) a.battleId = id;
+          await publish(s);
+          return coopView(s, u.id);
+        }
+        const id = z.string().min(1).max(80).parse(req.body?.battleId);
+        const s = await activeCoop(u.id);
+        if (!s || s.id !== id)
+          throw new WorldError(403, "참가하지 않은 협동 전투입니다.");
+        const member = s.members.find((m) => m.userId === u.id)!;
+        if (req.params.operation === "leave") {
+          await withdrawCoop(u.id);
+          const row = await db.coopBattle.findUniqueOrThrow({ where: { id } });
+          return coopView(row.state as unknown as CoopState, u.id);
+        }
+        if (req.params.operation === "ready") {
+          if (s.status !== "lobby" || member.ready)
+            throw new WorldError(409, "이미 처리된 참여 확인입니다.");
+          member.ready = true;
+          startReady(s);
+          await save(s);
+          return coopView(s, u.id);
+        }
+        if (req.params.operation !== "action" || s.status !== "active")
+          throw new WorldError(409, "행동을 선택할 수 없는 전투입니다.");
+        const body = z
+          .object({
+            expectedRound: z.number().int().positive(),
+            action: actionSchema,
+          })
+          .parse(req.body);
+        if (s.round !== body.expectedRound || member.choice)
+          throw new WorldError(409, "이미 선택했거나 지난 라운드입니다.");
+        if (member.state.team.every((f) => f.hp <= 0))
+          throw new WorldError(409, "전멸하여 관전 중입니다.");
+        member.state.round = s.round;
+        member.state.enemy = s.enemy;
+        validateBattleAction(member.state, body.action);
+        if (member.state.phase === "replacement") {
+          const replacement = resolveBattle(member.state, body.action, rng);
+          member.state = replacement;
+          member.state.enemy = s.enemy;
+        } else member.choice = body.action;
+        const resolved = resolveIfReady(s);
+        await save(s, resolved);
+        return coopView(s, u.id);
+      });
+      res.json({ battle: result });
+    } catch (error) {
+      if (error instanceof WorldError) {
+        res.status(error.status).json({ error: error.message });
+        return;
+      }
+      if (error instanceof BattleRuleError || error instanceof z.ZodError) {
+        res.status(400).json({
+          error:
+            error instanceof BattleRuleError
+              ? error.message
+              : "행동 입력을 확인하세요.",
+        });
+        return;
+      }
+      next(error);
+    }
+  });
+  return router;
+}
