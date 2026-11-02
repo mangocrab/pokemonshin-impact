@@ -1,3 +1,4 @@
+import { SANCTUARY, SANCTUARY_CHEST } from "../../shared/adventure.js";
 import { recordChestDiscovery } from "./story-store.js";
 import { ensureEconomy, addItem } from "./economy-store.js";
 import type { Server } from "socket.io";
@@ -19,6 +20,7 @@ export type Actor = {
   homePosition: Position;
   worldId: string;
   position: Position;
+  regions: string[];
   last: number;
   sockets: Set<string>;
   saved: Promise<void>;
@@ -50,19 +52,20 @@ async function acquire(userId: string, worldId: string, socketId: string) {
     pending = db.world
       .findUniqueOrThrow({
         where: { id: worldId },
-        include: { owner: { select: { nickname: true } } },
+        include: { owner: { select: { nickname: true } }, regions: true },
       })
       .then((world) => ({
         userId,
         nickname: world.owner.nickname,
         homeWorldId: worldId,
-        homePosition: isWalkable({ x: world.positionX, y: world.positionY })
+        homePosition: isWalkable({ x: world.positionX, y: world.positionY }, world.regions.map((r) => r.regionId))
           ? { x: world.positionX, y: world.positionY }
           : { ...SPAWN },
         worldId,
-        position: isWalkable({ x: world.positionX, y: world.positionY })
+        position: isWalkable({ x: world.positionX, y: world.positionY }, world.regions.map((r) => r.regionId))
           ? { x: world.positionX, y: world.positionY }
           : { ...SPAWN },
+        regions: world.regions.map((r) => r.regionId),
         last: performance.now(),
         sockets: new Set<string>(),
         saved: Promise.resolve(),
@@ -133,8 +136,11 @@ export async function openChest(
     throw new WorldError(403, "방문 중에는 월드 진행도를 변경할 수 없습니다.");
   if (current.battleId)
     throw new WorldError(409, "전투 중에는 상자를 열 수 없습니다.");
-  const chest = CHESTS.find((c) => c.id === chestId);
+  const chest = [...CHESTS, SANCTUARY_CHEST].find((c) => c.id === chestId);
   if (!chest) throw new WorldError(400, "존재하지 않는 상자입니다.");
+  if (chest.id === SANCTUARY_CHEST.id && !current.regions.includes(SANCTUARY.id))
+    throw new WorldError(403, "먼저 물결의 안뜰로 가는 길을 여세요.");
+  const special = chest.id === SANCTUARY_CHEST.id;
   const actor = await getActor(userId);
   if (
     !actor?.sockets.size ||
@@ -153,13 +159,13 @@ export async function openChest(
       await tx.wallet.update({
         where: { userId },
         data: {
-          conch: { increment: 40 },
-          shell: { increment: 300 },
+          conch: { increment: special ? 240 : 40 },
+          shell: { increment: special ? 750 : 300 },
           revision: { increment: 1 },
         },
       });
-      await addItem(tx, userId, "training-book", 1);
-      await addItem(tx, userId, "growth-stone", 2);
+      await addItem(tx, userId, "training-book", special ? 3 : 1);
+      await addItem(tx, userId, "growth-stone", special ? 3 : 2);
     });
     return true;
   } catch (error) {
@@ -192,6 +198,7 @@ export function registerExploration(io: Server) {
       socket.emit("world:ready", {
         position: actor.position,
         world: WORLD,
+        regions: actor.regions,
         worldId: actor.worldId,
         opened: chests,
         isOwner: actor.worldId === actor.homeWorldId,
@@ -216,7 +223,7 @@ export function registerExploration(io: Server) {
         const now = performance.now(),
           dt = (now - actor.last) / 1000;
         actor.last = now;
-        const next = move(actor.position, input as Position, dt);
+        const next = move(actor.position, input as Position, dt, actor.regions);
         const changed = next.x !== actor.position.x || next.y !== actor.position.y;
         if (changed && actor.worldId === actor.homeWorldId) actor.version++;
         actor.position = next;
@@ -312,6 +319,7 @@ export async function switchWorld(
   message = "월드를 이동했습니다.",
 ) {
   const opened = await openedChests(worldId);
+  const regions = (await db.worldRegion.findMany({ where: { worldId } })).map((r) => r.regionId);
   const oldWorld = actor.worldId;
   if (actor.battleId && worldId !== oldWorld) await leaveCombat(actor.userId);
   if (actor.battleId && worldId !== oldWorld)
@@ -324,8 +332,9 @@ export async function switchWorld(
     if (socket) await socket.leave(`world:${oldWorld}`);
   }
   actor.worldId = worldId;
+  actor.regions = regions;
   actor.position =
-    worldId === actor.homeWorldId ? { ...actor.homePosition } : { ...SPAWN };
+    worldId === actor.homeWorldId && isWalkable(actor.homePosition, regions) ? { ...actor.homePosition } : { ...SPAWN };
   actor.last = performance.now();
   for (const id of actor.sockets) {
     const socket = channel.sockets.sockets.get(id);
@@ -334,6 +343,7 @@ export async function switchWorld(
       socket.emit("world:ready", {
         position: actor.position,
         world: WORLD,
+        regions: actor.regions,
         worldId,
         opened,
         isOwner: worldId === actor.homeWorldId,
@@ -374,4 +384,10 @@ export async function blockVisitors(worldId: string) {
   const owner = (await onlineActors()).find((a) => a.homeWorldId === worldId);
   if (owner) await leaveCombat(owner.userId);
   await returnVisitors(worldId);
+}
+
+export async function refreshRegions(worldId: string) {
+  const regions = (await db.worldRegion.findMany({ where: { worldId } })).map((r) => r.regionId);
+  for (const actor of await onlineActors()) if (actor.worldId === worldId) actor.regions = [...regions];
+  channel.to(`world:${worldId}`).emit("adventure:changed", { worldId, regions });
 }

@@ -1,5 +1,6 @@
+import { SANCTUARY } from "./adventure.js";
 export type Position = { x: number; y: number };
-export const WORLD = { width: 1600, height: 1000, speed: 180 };
+export const WORLD = { width: 2000, height: 1000, speed: 180 };
 export const SPAWN: Position = { x: 800, y: 560 };
 export const INTERACTION_RADIUS = 64;
 export const CHESTS = [
@@ -18,13 +19,15 @@ export const OBSTACLES = [
   { x: 965, y: 565, width: 170, height: 110 },
   ...PALMS.map(([x, y]) => ({ x: x - 9, y: y - 10, width: 18, height: 20 })),
 ];
-export function isWalkable(p: Position) {
+export function isWalkable(p: Position, regions: readonly string[] = []) {
   const radius = 12;
   return (
     Number.isFinite(p.x) &&
     Number.isFinite(p.y) &&
     p.x >= 30 &&
-    p.x <= 1570 &&
+    p.x <= WORLD.width - 30 &&
+    (p.x <= SANCTUARY.boundary || (regions.includes(SANCTUARY.id) &&
+      (p.x <= SANCTUARY.bridgeEnd ? p.y >= SANCTUARY.bridgeTop && p.y <= SANCTUARY.bridgeBottom : p.y >= SANCTUARY.top))) &&
     p.y >= 310 &&
     p.y <= 970 &&
     !OBSTACLES.some(

@@ -42,8 +42,16 @@ export class CoastPresentation {
   private last = -Infinity;
   private quality: "high" | "low" = "high";
   constructor(private scene: Phaser.Scene) {
+    scene.add.rectangle(1000, 500, 2000, 1000, 0x69c9c6).setDepth(-110);
     coastTexture(scene);
     this.terrain = scene.add.image(800, 500, "coast-relief").setDisplaySize(1600, 1000).setDepth(-100);
+    scene.add.rectangle(1615, 640, 90, 720, 0x69c9c6).setDepth(-95);
+    const island = scene.add.graphics().setDepth(-90);
+    island.fillStyle(0xe8d6a7).fillRoundedRect(1660, 650, 340, 380, 60);
+    island.fillStyle(0xb4ca8c).fillRoundedRect(1680, 680, 310, 310, 45);
+    island.fillStyle(0xb5966b).fillRect(1540, 760, 140, 80);
+    for (let x = 1550; x < 1680; x += 16) island.lineStyle(2, 0x8f7757, 0.5).lineBetween(x, 760, x, 840);
+    scene.add.text(1710, 700, "물결의 안뜰", { fontSize: "20px", color: "#3f6b5b" }).setDepth(-80);
     this.waves = scene.add.graphics().setDepth(-90);
     scene.lights.enable().setAmbientColor(0xd6e4da);
     this.light = scene.lights.addLight(550, 100, 1400, 0xffecd0, 0.16);

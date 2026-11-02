@@ -35,3 +35,16 @@ test("only nearby unopened chests can be interacted with", () => {
   assert.equal(nearbyChest({ x: 850, y: 560 }, [])?.id, "coast-1");
   assert.equal(nearbyChest({ x: 850, y: 560 }, ["coast-1"]), undefined);
 });
+
+test("locked regions reject movement and forged availability cannot cross the old boundary", () => {
+  assert.deepEqual(move({ x: 1570, y: 800 }, { x: 999, y: 0 }, 10), { x: 1570, y: 800 });
+  assert.equal(isWalkable({ x: 1780, y: 800 }), false);
+  assert.equal(isWalkable({ x: 1780, y: 800 }, ["tide-sanctuary"]), true);
+});
+test("unlocked sanctuary uses its bridge, island shore and expanded world bounds", () => {
+  const regions = ["tide-sanctuary"];
+  assert.ok(move({ x: 1570, y: 800 }, { x: 1, y: 0 }, 0.1, regions).x > 1570);
+  assert.equal(move({ x: 1570, y: 700 }, { x: 1, y: 0 }, 0.1, regions).x, 1570);
+  assert.equal(move({ x: 1700, y: 670 }, { x: 0, y: -1 }, 0.1, regions).y, 670);
+  assert.equal(move({ x: 1970, y: 800 }, { x: 1, y: 0 }, 0.1, regions).x, 1970);
+});

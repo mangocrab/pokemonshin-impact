@@ -3,10 +3,11 @@ import Phaser from "phaser";
 import { CoastPresentation } from "./CoastPresentation";
 import { useSettings } from "./Settings";
 import { graphicsOptions } from "../../shared/settings";
+import { SANCTUARY, SANCTUARY_CHEST, TIDE_PUZZLE, nearPuzzle, nearSanctuaryChest } from "../../shared/adventure";
 import { NPCS, nearbyNpc } from "../../shared/story";
 import { ENCOUNTER } from "../../shared/combat";
 import { io } from "socket.io-client";
-import { CHESTS, PALMS, nearbyChest, type Position } from "../../shared/world";
+import { WORLD, CHESTS, PALMS, nearbyChest, type Position } from "../../shared/world";
 export function Game({
   onConnection,
   active = true,
@@ -32,6 +33,8 @@ export function Game({
   const [nearEnemy, setNearEnemy] = useState(false);
   const [isOwner, setIsOwner] = useState(true);
   const [playerCount, setPlayerCount] = useState(1);
+  const [puzzleNear, setPuzzleNear] = useState(false), [regionNames, setRegionNames] = useState<string[]>([]), [secretFound, setSecretFound] = useState(false), [area, setArea] = useState("산호 해안");
+  const inspect = useRef<() => void>(() => {});
   const [npcName, setNpcName] = useState("");
   const talk = useRef<() => void>(() => {});
   const [nearby, setNearby] = useState("");
@@ -49,17 +52,25 @@ export function Game({
       ready = false,
       pending = false;
     let ownId = "",
-      owner = true;
+      owner = true, regions: string[] = [];
+    let gate: Phaser.GameObjects.Container | undefined;
+    function applyRegions(ids: string[]) {
+      regions = ids; setRegionNames(ids);
+      gate?.setVisible(!ids.includes(SANCTUARY.id));
+      chestSprites.get(SANCTUARY_CHEST.id)?.setVisible(ids.includes(SANCTUARY.id));
+    }
+    const findChest = (p: Position) => nearbyChest(p, opened) ?? nearSanctuaryChest(p, opened, regions);
     const chestSprites = new Map<string, Phaser.GameObjects.Container>();
     function refreshChests(ids: string[]) {
       window.dispatchEvent(new Event("world:loot"));
       opened = ids;
-      setCount(ids.length);
+      setCount(ids.filter((id) => CHESTS.some((c) => c.id === id)).length);
+      setSecretFound(ids.includes(SANCTUARY_CHEST.id));
       for (const [id, sprite] of chestSprites)
         sprite.setAlpha(ids.includes(id) ? 0.4 : 1);
     }
     async function openNearby(position: Position) {
-      const chest = nearbyChest(position, opened);
+      const chest = findChest(position);
       if (!chest || pending || !ready || !activeRef.current || !owner) return;
       pending = true;
       setBusy(true);
@@ -94,6 +105,11 @@ export function Game({
       window.dispatchEvent(new CustomEvent("battle:state", { detail: state })),
     );
     socket.on("world:chests", refreshChests);
+    socket.on("adventure:changed", (data: { worldId: string; regions: string[] }) => {
+      if (data.worldId !== worldId) return;
+      applyRegions(data.regions);
+      window.dispatchEvent(new Event("adventure:changed"));
+    });
     socket.on("story:changed", () => {
       window.dispatchEvent(new Event("story:changed"));
       window.dispatchEvent(new Event("economy:changed"));
@@ -111,6 +127,7 @@ export function Game({
       ready = false;
       setNearby("");
       setNpcName("");
+      setPuzzleNear(false);
       window.dispatchEvent(new Event("story:world"));
     });
     socket.on("connect", () => onConnection(false));
@@ -157,7 +174,7 @@ export function Game({
           fontSize: "18px",
           color: "#42645b",
         });
-        for (const chest of CHESTS) {
+        for (const chest of [...CHESTS, SANCTUARY_CHEST]) {
           const sprite = this.add
             .container(chest.x, chest.y, [
               this.presentation.shadow(this.add.ellipse(0, 10, 38, 15, 0x244a48, 0.2)),
@@ -167,6 +184,7 @@ export function Game({
             ])
             .setDepth(chest.y);
           chestSprites.set(chest.id, sprite);
+          if (chest.id === SANCTUARY_CHEST.id) sprite.setVisible(false);
         }
         this.presentation.shadow(this.add.ellipse(ENCOUNTER.x, ENCOUNTER.y + 8, 48, 18, 0x244a48, 0.2)).setDepth(-1);
         this.add
@@ -195,6 +213,10 @@ export function Game({
             this.add.text(0, -62, `${npc.name} · ${npc.title}`, { fontSize: "12px", color: "#244a48", backgroundColor: "#fffef5dd" }).setOrigin(0.5),
           ]).setDepth(npc.y);
         }
+        this.add.rectangle(TIDE_PUZZLE.x, TIDE_PUZZLE.y - 5, 50, 36, 0x8797a1).setDepth(TIDE_PUZZLE.y);
+        this.add.text(TIDE_PUZZLE.x, TIDE_PUZZLE.y - 45, "☀ ❧ ≈ ☾", { fontSize: "20px", color: "#526c76" }).setOrigin(0.5).setDepth(TIDE_PUZZLE.y + 1);
+        this.add.text(TIDE_PUZZLE.x, TIDE_PUZZLE.y + 22, TIDE_PUZZLE.name, { fontSize: "12px", color: "#365c59" }).setOrigin(0.5);
+        gate = this.add.container(1570, 800, [this.add.rectangle(0, 0, 10, 80, 0x947452), this.add.text(-20, -65, "잠긴 다리", { fontSize: "12px", color: "#5f6d53" })]).setDepth(900);
         this.player = this.add.container(800, 560, [
           this.presentation.shadow(this.add.ellipse(0, 9, 28, 12, 0x244a48, 0.25)),
           this.add.circle(0, -12, 12, 0x3b6375),
@@ -203,7 +225,7 @@ export function Game({
           this.add.ellipse(0, -31, 29, 10, 0xf4de9f),
         ]);
         this.cameras.main
-          .setBounds(0, 0, 1600, 1000)
+          .setBounds(0, 0, WORLD.width, WORLD.height)
           .startFollow(this.player, true, 0.12, 0.12, 0, 100);
         this.keys = this.input.keyboard!.createCursorKeys();
         this.wasd = this.input.keyboard!.addKeys("W,A,S,D") as typeof this.wasd;
@@ -253,6 +275,7 @@ export function Game({
             position,
             worldId: id,
             opened: ids,
+            regions: unlocked,
             isOwner: host,
             userId,
             message: notice,
@@ -265,6 +288,7 @@ export function Game({
             this.others.clear();
             window.dispatchEvent(new Event("battle:refresh"));
             worldId = id;
+            applyRegions(unlocked ?? []);
             ready = true;
             onConnection(true);
             this.player.setPosition(position.x, position.y);
@@ -278,9 +302,13 @@ export function Game({
           if (npc && ready && activeRef.current)
             window.dispatchEvent(new CustomEvent("npc:talk", { detail: { npcId: npc.id, worldId } }));
         };
+        inspect.current = () => {
+          if (ready && activeRef.current && nearPuzzle(this.player)) window.dispatchEvent(new CustomEvent("puzzle:inspect", { detail: { worldId, puzzleId: TIDE_PUZZLE.id } }));
+        };
         interact.current = () => {
-          if (owner && nearbyChest(this.player, opened)) void openNearby(this.player);
-          else talk.current();
+          if (owner && findChest(this.player)) void openNearby(this.player);
+          else if (nearbyNpc(this.player)) talk.current();
+          else inspect.current();
         };
         this.input.keyboard!.on("keydown-E", () => interact.current());
         socket.connect();
@@ -312,9 +340,11 @@ export function Game({
         }
         const chest =
           ready && activeRef.current && owner
-            ? nearbyChest(this.player, opened)
+            ? findChest(this.player)
             : undefined;
         setNearby(chest?.name ?? "");
+        setPuzzleNear(ready && activeRef.current && nearPuzzle(this.player));
+        setArea(this.player.x > SANCTUARY.boundary ? SANCTUARY.name : "산호 해안");
         setNpcName(ready && activeRef.current ? nearbyNpc(this.player)?.talkLabel ?? "" : "");
         setNearEnemy(
           Boolean(
@@ -346,6 +376,7 @@ export function Game({
     });
     return () => {
       configure.current = () => {};
+      inspect.current = () => {};
       talk.current = () => {};
       interact.current = () => {};
       socket.disconnect();
@@ -373,6 +404,8 @@ export function Game({
             {playerCount > 1 ? "협동 보스전 모집" : "산호 집게게와 전투"}
           </button>
         )}
+        {puzzleNear && <button onClick={() => inspect.current()}>[E] 세 파도의 종 조사</button>}
+        {regionNames.includes(SANCTUARY.id) && <span>{area} · 안뜰의 선물 {secretFound ? 1 : 0}/1</span>}
         {npcName && <button onClick={() => talk.current()}>[E] {npcName}</button>}
         {nearby && (
           <button disabled={busy} onClick={() => interact.current()}>

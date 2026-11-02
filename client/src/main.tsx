@@ -1,6 +1,7 @@
 import { Collection, WalletBar } from "./Collection";
 import React, { lazy, Suspense, useState, useCallback, useEffect } from "react";
 import { createRoot } from "react-dom/client";
+import { Adventure } from "./Adventure";
 import { Story } from "./Story";
 import { Battle } from "./Battle";
 import { Characters, LearningNotice } from "./Training";
@@ -22,6 +23,8 @@ function App() {
       .finally(() => setLoaded(true));
   }, []);
   useEffect(load, [load]);
+  const [inPuzzle, setInPuzzle] = useState(false);
+  const puzzleChanged = useCallback((value: boolean) => setInPuzzle(value), []);
   const [inDialogue, setInDialogue] = useState(false);
   const dialogueChanged = useCallback((value: boolean) => setInDialogue(value), []);
   const [inBattle, setInBattle] = useState(false);
@@ -55,6 +58,7 @@ function App() {
             "인벤토리",
             "친구 및 멀티플레이",
             "모험 일지",
+            "지역 지도",
             "설정",
           ].map((n, i) => (
             <button
@@ -63,7 +67,7 @@ function App() {
               key={n}
               onClick={() => setMenu(n)}
             >
-              <span>{["◈", "♧", "✧", "✦", "▣", "♧", "▤", "⚙"][i]}</span>
+              <span>{["◈", "♧", "✧", "✦", "▣", "♧", "▤", "◇", "⚙"][i]}</span>
               {n}
               <b>›</b>
             </button>
@@ -99,7 +103,7 @@ function App() {
             <Suspense fallback={<div className="game-loading">해안을 불러오는 중…</div>}><Game
               onWorldChange={worldChanged}
               onConnection={status}
-              active={menu === "탐험" && !inBattle && !inDialogue}
+              active={menu === "탐험" && !inBattle && !inDialogue && !inPuzzle}
             /></Suspense>
           )}
           <div className="location">
@@ -110,6 +114,7 @@ function App() {
           </div>
         </div>
         {user && <Story inBattle={inBattle} journalOpen={menu === "모험 일지"} onCloseJournal={() => setMenu("탐험")} onOpenJournal={() => setMenu("모험 일지")} onActiveChange={dialogueChanged} />}
+        {user && <Adventure mapOpen={menu === "지역 지도"} onCloseMap={() => setMenu("탐험")} onActiveChange={puzzleChanged} inBattle={inBattle} />}
         <section className="bottom">
           <div>
             <small>EXPLORE AT YOUR OWN PACE</small>

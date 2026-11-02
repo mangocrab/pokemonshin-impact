@@ -4,6 +4,7 @@ export function move(
   position: Position,
   input: Position,
   dt: number,
+  regions: readonly string[] = [],
 ): Position {
   if (![input.x, input.y, dt].every(Number.isFinite))
     throw new Error("Invalid movement");
@@ -16,14 +17,14 @@ export function move(
   for (let i = 0; i < steps; i++) {
     const x = Math.max(
       30,
-      Math.min(1570, result.x + (input.x * scale * distance) / steps),
+      Math.min(WORLD.width - 30, result.x + (input.x * scale * distance) / steps),
     );
-    if (isWalkable({ x, y: result.y })) result.x = x;
+    if (isWalkable({ x, y: result.y }, regions)) result.x = x;
     const y = Math.max(
       310,
       Math.min(970, result.y + (input.y * scale * distance) / steps),
     );
-    if (isWalkable({ x: result.x, y })) result.y = y;
+    if (isWalkable({ x: result.x, y }, regions)) result.y = y;
   }
   return result;
 }

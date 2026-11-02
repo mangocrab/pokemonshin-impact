@@ -47,6 +47,8 @@ model World {
   positionY Float @default(560)
   openedChests WorldChest[]
   quests WorldQuest[]
+  puzzles WorldPuzzle[]
+  regions WorldRegion[]
   access String @default("invite")
   progress Json @default("{}")
   createdAt DateTime @default(now())
@@ -278,4 +280,21 @@ model WorldQuest {
   acceptedAt DateTime @default(now())
   claimedAt DateTime?
   @@id([worldId, questId])
+}
+
+model WorldPuzzle {
+  worldId String
+  puzzleId String
+  world World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  progress Int @default(0)
+  revision Int @default(0)
+  solvedAt DateTime?
+  @@id([worldId, puzzleId])
+}
+model WorldRegion {
+  worldId String
+  regionId String
+  world World @relation(fields: [worldId], references: [id], onDelete: Cascade)
+  unlockedAt DateTime @default(now())
+  @@id([worldId, regionId])
 }

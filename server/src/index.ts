@@ -1,3 +1,4 @@
+import { adventureRouter } from "./adventure.js";
 import { registerStory } from "./story.js";
 import { settingsRouter } from "./settings.js";
 import { economyRouter } from "./economy.js";
@@ -211,6 +212,7 @@ app.use("/api/settings", settingsRouter);
 app.use("/api/battle", registerCombat(io));
 app.use("/api/coop", registerCoop(io));
 app.use("/api/story", registerStory(io));
+app.use("/api/adventure", adventureRouter);
 
 app.use(
   (
