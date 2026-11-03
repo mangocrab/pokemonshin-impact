@@ -1,0 +1,32 @@
+{
+  "frames": {
+    "scene": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 1672,
+        "h": 941
+      },
+      "rotated": false,
+      "trimmed": false,
+      "sourceSize": {
+        "w": 1672,
+        "h": 941
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 1672,
+        "h": 941
+      }
+    }
+  },
+  "meta": {
+    "image": "battle-coast.webp",
+    "size": {
+      "w": 1672,
+      "h": 941
+    },
+    "scale": "1"
+  }
+}

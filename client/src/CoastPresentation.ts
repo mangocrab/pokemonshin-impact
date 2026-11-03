@@ -20,19 +20,26 @@ function coastTexture(scene: Phaser.Scene) {
   const diffuse = canvas.getContext("2d")!, normal = normals.getContext("2d")!;
   const colors = diffuse.createImageData(width, height), vectors = normal.createImageData(width, height);
   const elevation = new Float32Array(width * height);
+  const feather = (from: number, to: number, value: number) => {
+    const t = Math.max(0, Math.min(1, (value - from) / (to - from)));
+    return t * t * (3 - 2 * t);
+  };
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     const shore = 140 + Math.sin(x / 85) * 5, grass = 335 + Math.sin(x / 60) * 12;
-    const sea = y < shore, green = y > grass && x > 65 && x < 740;
-    const path = x > 345 && x < 415 && y > 185;
-    const tile = tiles[sea ? 0 : green && !path ? 2 : 1].data;
+    const sea = 1 - feather(shore - 2, shore + 2, y);
+    const path = feather(335, 353, x) * (1 - feather(407, 425, x)) * feather(180, 198, y);
+    const green = feather(grass - 5, grass + 6, y) * feather(60, 70, x) * (1 - feather(735, 745, x)) * (1 - path);
     const tx = Math.floor(x / 128) % 2 ? 127 - x % 128 : x % 128;
     const ty = Math.floor(y / 128) % 2 ? 127 - y % 128 : y % 128;
     const sample = (ty * 128 + tx) * 4;
-    const edge = !sea && y < shore + 5 ? 8 : 0;
+    const edge = (1 - sea) * (1 - feather(shore + 1, shore + 5, y)) * 5;
     const i = (y * width + x) * 4;
-    for (let c = 0; c < 3; c++) colors.data[i + c] = tile[sample + c] + edge - (path ? 7 : 0);
+    for (let c = 0; c < 3; c++) {
+      const land = tiles[1].data[sample + c] * (1 - green) + tiles[2].data[sample + c] * green;
+      colors.data[i + c] = land * (1 - sea) + tiles[0].data[sample + c] * sea + edge - path * 1.5;
+    }
     colors.data[i + 3] = 255;
-    elevation[y * width + x] = (sea ? 0 : green && !path ? 3 : 1) + Math.sin(x / 9 + y / 13) * (sea ? 0.2 : 0.07);
+    elevation[y * width + x] = (1 - sea) * (1 + green * 2) + Math.sin(x / 9 + y / 13) * (sea * 0.2 + (1 - sea) * 0.07);
   }
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     const dx = elevation[y * width + Math.min(x + 1, width - 1)] - elevation[y * width + Math.max(x - 1, 0)];
@@ -72,8 +79,8 @@ export class CoastPresentation {
     for (let x = 1550; x < 1680; x += 16) scene.add.line(0, 0, x, 760, x, 840, 0x70543b, 0.22).setOrigin(0).setDepth(-79);
     scene.add.text(1710, 700, "물결의 안뜰", { fontSize: "20px", color: "#3f6b5b" }).setDepth(-80);
     this.waves = scene.add.graphics().setDepth(-90);
-    scene.lights.enable().setAmbientColor(0xe4eeff);
-    this.light = scene.lights.addLight(550, 100, 1400, 0xfff5df, 0.18);
+    scene.lights.enable().setAmbientColor(0xeff2f7);
+    this.light = scene.lights.addLight(550, 100, 1400, 0xfff6e5, 0.12);
     this.terrain.setCrop(0, 0, 785, 500);
     this.terrain.setLighting(true).setSelfShadow(false);
     for (let i = 0; i < 18; i++) this.motes.push(scene.add.circle(140 + (i * 83) % 1350, 360 + (i * 59) % 580, 1 + i % 2, 0xd9f2ff, 0.4).setDepth(2000));
@@ -105,7 +112,7 @@ export class CoastPresentation {
   private drawWaves(time: number) {
     this.waves.clear();
     for (let band = 0; band < 3; band++) {
-      this.waves.lineStyle(2 - band * 0.4, 0xe5fbff, 0.45 - band * 0.1).beginPath();
+      this.waves.lineStyle(1.5 - band * 0.3, 0xe5f2f3, 0.28 - band * 0.06).beginPath();
       for (let x = 0; x <= 1600; x += 16) {
         const y = 252 - band * 34 + Math.sin(x / 125 + time * 0.0006 + band) * 7;
         if (x === 0) this.waves.moveTo(x, y); else this.waves.lineTo(x, y);

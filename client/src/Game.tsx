@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import { CoastPresentation } from "./CoastPresentation";
+import { artScale, TRAVELER_DISPLAY_SIZE } from "../../shared/art-layout";
 import { useSettings } from "./Settings";
 import { graphicsOptions } from "../../shared/settings";
 import { SANCTUARY, SANCTUARY_CHEST, TIDE_PUZZLE, nearPuzzle, nearSanctuaryChest } from "../../shared/adventure";
@@ -62,6 +63,9 @@ export function Game({
     const findChest = (p: Position) => nearbyChest(p, opened) ?? nearSanctuaryChest(p, opened, regions);
     const chestArt = new Map<string, Phaser.GameObjects.Image>();
     const chestSprites = new Map<string, Phaser.GameObjects.Container>();
+    function fitArt(sprite: Phaser.GameObjects.Image, width: number, height: number) {
+      return sprite.setScale(artScale(sprite.frame.realWidth, sprite.frame.realHeight, width, height));
+    }
     function refreshChests(ids: string[]) {
       window.dispatchEvent(new Event("world:loot"));
       opened = ids;
@@ -69,7 +73,7 @@ export function Game({
       setSecretFound(ids.includes(SANCTUARY_CHEST.id));
       for (const [id, sprite] of chestArt) {
         const open = ids.includes(id);
-        sprite.setFrame(open ? "chest-open" : "chest").setDisplaySize(42, open ? 45 : 34);
+        fitArt(sprite.setFrame(open ? "chest-open" : "chest"), 42, open ? 45 : 34);
       }
     }
     async function openNearby(position: Position) {
@@ -155,14 +159,14 @@ export function Game({
         configure.current();
         for (const [x, y] of PALMS) {
           this.presentation.shadow(this.add.ellipse(x + 12, y + 7, 95, 30, 0x244a48, 0.13)).setDepth(-1);
-          const palm = this.add.image(x, y + 4, "world-art", "palm").setOrigin(0.31, 1).setDisplaySize(145, 164).setDepth(y);
+          const palm = fitArt(this.add.image(x, y + 4, "world-art", "palm").setOrigin(0.5, 1), 145, 164).setDepth(y);
           this.presentation.foliage(palm, 0);
         }
         this.presentation.shadow(this.add.ellipse(1050, 675, 200, 40, 0x244a48, 0.15)).setDepth(-1);
-        this.add.image(1050, 675, "world-art", "cottage").setOrigin(0.5, 1).setDisplaySize(208, 194).setDepth(675);
+        fitArt(this.add.image(1050, 675, "world-art", "cottage").setOrigin(0.5, 1), 208, 194).setDepth(675);
         this.add.text(990, 695, "산호빛 쉼터", { fontSize: "14px", color: "#42645b", backgroundColor: "#fff7dfcc" });
         for (const chest of [...CHESTS, SANCTUARY_CHEST]) {
-          const painted = this.add.image(0, 4, "world-art", "chest").setOrigin(0.5, 1).setDisplaySize(42, 34);
+          const painted = fitArt(this.add.image(0, 4, "world-art", "chest").setOrigin(0.5, 1), 42, 34);
           chestArt.set(chest.id, painted);
           const sprite = this.add.container(chest.x, chest.y, [
             this.presentation.shadow(this.add.ellipse(0, 5, 38, 12, 0x244a48, 0.17)), painted,
@@ -171,26 +175,26 @@ export function Game({
           if (chest.id === SANCTUARY_CHEST.id) sprite.setVisible(false);
         }
         this.presentation.shadow(this.add.ellipse(ENCOUNTER.x, ENCOUNTER.y + 6, 58, 20, 0x244a48, 0.18)).setDepth(-1);
-        this.add.image(ENCOUNTER.x, ENCOUNTER.y + 5, "world-art", "coral-crab").setOrigin(0.5, 1).setDisplaySize(76, 62).setDepth(ENCOUNTER.y);
+        fitArt(this.add.image(ENCOUNTER.x, ENCOUNTER.y + 5, "world-art", "coral-crab").setOrigin(0.5, 1), 76, 62).setDepth(ENCOUNTER.y);
         this.add.text(ENCOUNTER.x, ENCOUNTER.y + 16, ENCOUNTER.name, { fontSize: "12px", color: "#704c3e", backgroundColor: "#fff7dfcc" }).setOrigin(0.5);
         const bloom = SANCTUARY_ENCOUNTER;
         this.presentation.shadow(this.add.ellipse(bloom.x, bloom.y + 6, 52, 18, 0x244a48, 0.17)).setDepth(-1);
-        this.add.image(bloom.x, bloom.y + 6, "world-art", "sanctuary-bloom").setOrigin(0.5, 1).setDisplaySize(70, 76).setDepth(bloom.y);
+        fitArt(this.add.image(bloom.x, bloom.y + 6, "world-art", "sanctuary-bloom").setOrigin(0.5, 1), 70, 76).setDepth(bloom.y);
         this.add.text(bloom.x, bloom.y + 22, bloom.name, { fontSize: "12px", color: "#365e46", backgroundColor: "#fff7dfcc" }).setOrigin(0.5);
         for (const npc of NPCS) {
           this.add.container(npc.x, npc.y, [
             this.presentation.shadow(this.add.ellipse(0, 6, 30, 11, 0x244a48, 0.18)),
-            this.add.image(0, 5, "world-art", npc.id).setOrigin(0.5, 1).setDisplaySize(49, 66),
-            this.add.text(0, -74, `${npc.name} · ${npc.title}`, { fontSize: "12px", color: "#244a48", backgroundColor: "#fffef5dd" }).setOrigin(0.5),
+            fitArt(this.add.image(0, 5, "world-art", npc.id).setOrigin(0.5, 1), 56, 86),
+            this.add.text(0, -94, `${npc.name} · ${npc.title}`, { fontSize: "12px", color: "#244a48", backgroundColor: "#fffef5dd" }).setOrigin(0.5),
           ]).setDepth(npc.y);
         }
-        this.add.image(TIDE_PUZZLE.x, TIDE_PUZZLE.y + 10, "world-art", "altar").setOrigin(0.5, 1).setDisplaySize(84, 86).setDepth(TIDE_PUZZLE.y);
+        fitArt(this.add.image(TIDE_PUZZLE.x, TIDE_PUZZLE.y + 10, "world-art", "altar").setOrigin(0.5, 1), 84, 86).setDepth(TIDE_PUZZLE.y);
         this.add.text(TIDE_PUZZLE.x, TIDE_PUZZLE.y - 91, "☀ ❧ ≈ ☾", { fontSize: "16px", color: "#526c76", backgroundColor: "#fff7dfcc" }).setOrigin(0.5).setDepth(TIDE_PUZZLE.y + 1);
         this.add.text(TIDE_PUZZLE.x, TIDE_PUZZLE.y + 22, TIDE_PUZZLE.name, { fontSize: "12px", color: "#365c59" }).setOrigin(0.5);
-        gate = this.add.container(1570, 800, [this.add.image(0, 0, "world-art", "lantern").setOrigin(0.5, 1).setDisplaySize(44, 82), this.add.text(-23, -100, "잠긴 다리", { fontSize: "12px", color: "#5f6d53" })]).setDepth(800);
+        gate = this.add.container(1570, 800, [fitArt(this.add.image(0, 0, "world-art", "lantern").setOrigin(0.5, 1), 44, 82), this.add.text(-23, -100, "잠긴 다리", { fontSize: "12px", color: "#5f6d53" })]).setDepth(800);
         this.player = this.add.container(800, 560, [
           this.presentation.shadow(this.add.ellipse(0, 7, 28, 11, 0x244a48, 0.2)),
-          this.add.image(0, 5, "traveler-art", "south-0").setOrigin(0.5, 1).setDisplaySize(72, 72),
+          this.add.image(0, 5, "traveler-art", "south-0").setOrigin(0.5, 1).setDisplaySize(TRAVELER_DISPLAY_SIZE, TRAVELER_DISPLAY_SIZE),
         ]);
         this.presentation.traveler(this.player);
         this.cameras.main
@@ -219,9 +223,9 @@ export function Game({
               if (!sprite) {
                 sprite = this.add.container(p.position.x, p.position.y, [
                   this.presentation.shadow(this.add.ellipse(0, 9, 28, 12, 0x244a48, 0.25)),
-                  this.add.image(0, 5, "traveler-art", "south-0").setOrigin(0.5, 1).setDisplaySize(72, 72).setTint(0xd8eeea),
+                  this.add.image(0, 5, "traveler-art", "south-0").setOrigin(0.5, 1).setDisplaySize(TRAVELER_DISPLAY_SIZE, TRAVELER_DISPLAY_SIZE).setTint(0xe4eef3),
                   this.add
-                    .text(0, -70, p.nickname, {
+                    .text(0, -94, p.nickname, {
                       fontSize: "12px",
                       color: "#244a48",
                       backgroundColor: "#fffef5",

@@ -11,13 +11,18 @@ SETS = {
     'world': (4, 3, ['palm', 'cottage', 'chest', 'chest-open', 'coral-crab', 'sanctuary-bloom', 'altar', 'lantern', 'daon', 'moru', 'serin', 'traveler']),
     'terrain': (4, 1, ['water', 'sand', 'grass', 'wood']),
     'key-visual': (1, 1, ['scene']),
+    'battle-coast': (1, 1, ['scene']),
     'traveler': (3, 4, [f'{direction}-{step}' for direction in ['south', 'west', 'east', 'north'] for step in range(3)]),
 }
 manifest = {}
 for name, (cols, rows, ids) in SETS.items():
     im = Image.open(ROOT / f'art/source/{name}.png')
     width, height = im.size
-    im.save(OUT / f'{name}.webp', 'WEBP', quality=88, method=6)
+    # Keep illustration RGB detail. Quantize nearly transparent edge noise in the
+    # new cutouts through the WebP encoder; source PNGs and frame pixels stay intact.
+    quality = 80 if name in ['terrain', 'battle-coast'] else 88
+    alpha_quality = 65 if name in ['world', 'traveler'] else 100
+    im.save(OUT / f'{name}.webp', 'WEBP', quality=quality, alpha_quality=alpha_quality, method=6)
     # Generated sheets can have slightly unequal row gutters; use actual transparent
     # separator scanlines rather than cutting through a neighboring character's hat.
     row_cuts = [round(r * height / rows) for r in range(rows + 1)]
@@ -25,14 +30,29 @@ for name, (cols, rows, ids) in SETS.items():
         ink = im.getchannel('A').point(lambda a: 255 if a > 100 else 0)
         for r in range(1, rows):
             expected = row_cuts[r]
-            radius = max(1, round(height / rows * 0.14))
+            radius = max(1, round(height / rows * (0.35 if name == 'world' else 0.14)))
             gaps = [y for y in range(max(1, expected-radius), min(height, expected+radius+1)) if ink.crop((0, y, width, y+1)).getbbox() is None]
             if gaps:
                 row_cuts[r] = min(gaps, key=lambda y: abs(y - expected))
+    # World props and adult NPCs use unequal row heights. Each column can have
+    # its own clear gutter; a neighboring palm/altar must not force a cut through a head.
+    world_rows = {}
+    if name == 'world':
+        for col in range(cols):
+            left, right = round(col * width / cols), round((col + 1) * width / cols)
+            cuts = [round(r * height / rows) for r in range(rows + 1)]
+            for r in range(1, rows):
+                expected, radius = cuts[r], round(height / rows * 0.35)
+                gaps = [y for y in range(max(1, expected-radius), min(height, expected+radius+1)) if ink.crop((left, y, right, y+1)).getbbox() is None]
+                if not gaps:
+                    raise ValueError(f'{name} column {col} row {r}: no transparent separator')
+                cuts[r] = min(gaps, key=lambda y: abs(y-expected))
+            world_rows[col] = cuts
     frames = {}
     for i, key in enumerate(ids):
-        x, y = round(i % cols * width / cols), row_cuts[i // cols]
-        right, bottom = round((i % cols + 1) * width / cols), row_cuts[i // cols + 1]
+        cuts = world_rows.get(i % cols, row_cuts)
+        x, y = round(i % cols * width / cols), cuts[i // cols]
+        right, bottom = round((i % cols + 1) * width / cols), cuts[i // cols + 1]
         cell_x, cell_y, cell_w, cell_h = x, y, right-x, bottom-y
         # The frame is atlas metadata; the original pixels are never cropped or rearranged.
         if im.mode == 'RGBA':

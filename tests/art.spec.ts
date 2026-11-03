@@ -15,8 +15,8 @@ test("painted atlases render every owned hero, world and enemy with working batt
     await db.userCharacter.createMany({ data: CHARACTERS.slice(4).map((c) => ({ userId: u.id, characterId: c.id })), skipDuplicates: true });
     await page.goto("/"); await expect(page.getByRole("status")).toContainText("불러왔습니다", { timeout: 15000 });
     expect(await page.evaluate(async () => {
-      return Promise.all(["heroes", "world", "terrain"].map((id) => new Promise<boolean>((resolve) => { const img = new Image(); img.onload = () => resolve(img.naturalWidth > 1000); img.onerror = () => resolve(false); img.src = `/art/${id}.webp`; })));
-    })).toEqual([true, true, true]);
+      return Promise.all(["heroes", "world", "terrain", "traveler", "battle-coast"].map((id) => new Promise<boolean>((resolve) => { const img = new Image(); img.onload = () => resolve(img.naturalWidth > 1000); img.onerror = () => resolve(false); img.src = `/art/${id}.webp`; })));
+    })).toEqual([true, true, true, true, true]);
     await page.screenshot({ path: testInfo.outputPath("painted-coast.png") });
     await page.getByRole("button", { name: "캐릭터", exact: true }).click();
     const characters = page.getByRole("dialog", { name: "캐릭터", exact: true });
@@ -62,6 +62,7 @@ test("painted atlases render every owned hero, world and enemy with working batt
     await banner.getByRole("button", { name: "닫기", exact: true }).click();
     await page.getByRole("button", { name: "산호 집게게와 전투", exact: true }).click();
     const battle = page.getByRole("dialog", { name: "산호 해안 전투", exact: true });
+    await expect(battle.locator(".battle-field")).toHaveCSS("background-image", /battle-coast\.webp/);
     await expect(battle.getByRole("img", { name: "해린 일러스트", exact: true })).toBeVisible();
     await expect(battle.getByRole("img", { name: "산호 집게게 일러스트", exact: true })).toBeVisible();
     await page.screenshot({ path: testInfo.outputPath("painted-battle.png") });

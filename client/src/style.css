@@ -1149,7 +1149,7 @@ header .badge, .wallet-bar { color:#344f7d; background:#e0eafa; border:1px solid
 .quest-card .quest-reward { color:#906b31; }
 .quest-card small { color:#536f9c; }
 .quest-card { border:1px solid #cfdbed; }
-.battle-field { background:radial-gradient(ellipse at 50% 0,#deefff66,transparent 75%),linear-gradient(#69bce1 0 28%,#d2ebfb 29% 30%,#f4e7c7 31% 100%); border:1px solid #a9c9e7; }
+.battle-field { background:linear-gradient(#e9f2f733,#faf6e9b8),url('/art/battle-coast.webp') center 55% / cover; border:1px solid #b8c7d2; }
 .health-track { background:#bbd0e8; }
 .health-track i { background:linear-gradient(90deg,#3278be,#64c4dd); }
 .enemy-health i { background:linear-gradient(90deg,#bb6683,#e9a681); }
