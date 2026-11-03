@@ -82,7 +82,7 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
       await expect.poll(async () => {
         const state = await p.locator(".game").getAttribute("data-object-relief");
         return state ? JSON.parse(state) : null;
-      }, { timeout: 15000 }).toMatchObject({ objects: 21, atlases: 2, normalFrames: 24, litObjects: 21, projectedShadows: 21 });
+      }, { timeout: 15000 }).toMatchObject({ objects: 21, visibleObjects: 20, atlases: 2, normalFrames: 24, litObjects: 21, projectedShadows: 20 });
     }
     await host
       .getByRole("button", { name: "협동 보스전 모집", exact: true })

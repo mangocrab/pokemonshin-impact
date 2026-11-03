@@ -41,6 +41,9 @@ test("two players become friends, accept invitation and return on owner logout",
       await expect(p.getByRole("status")).toContainText("불러왔습니다", { timeout: 15000 });
     }
     const [host, guest] = pages;
+    const rendering = (p: Page) => p.locator(".game").evaluate(el => JSON.parse((el as HTMLElement).dataset.objectRelief!));
+    await expect.poll(async () => (await rendering(host)).groundContacts.objects).toBeGreaterThan(0);
+    const baseline = await rendering(host);
     await menu(host);
     await host.getByLabel("친구 아이디", { exact: true }).fill(prefix + "1");
     await host
@@ -66,6 +69,10 @@ test("two players become friends, accept invitation and return on owner logout",
     ).toHaveCount(0);
     await host.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(host.getByText("내 월드 · 2/4")).toBeVisible();
+    for (const p of [host, guest]) {
+      await expect.poll(async () => (await rendering(p)).objects).toBe(baseline.objects + 1);
+      await expect.poll(async () => (await rendering(p)).groundContacts.objects).toBe(baseline.groundContacts.objects + 1);
+    }
     const observeFrames = (p: Page, attribute: string) => p.locator(".game").evaluate((el, name) => new Promise<string[]>((resolve) => {
       const seen = new Set<string>(), read = () => seen.add(el.getAttribute(name) ?? "");
       read();
@@ -85,6 +92,8 @@ test("two players become friends, accept invitation and return on owner logout",
     await host.getByRole("button", { name: "로그아웃", exact: true }).click();
     await expect(guest.getByRole("status")).toContainText("소유자가 떠나");
     await expect(guest.getByText("내 월드 · 1/4")).toBeVisible();
+    await expect.poll(async () => (await rendering(guest)).objects).toBe(baseline.objects);
+    await expect.poll(async () => (await rendering(guest)).groundContacts.objects).toBe(baseline.groundContacts.objects);
     expect(errors).toEqual([]);
   } finally {
     for (const p of pages) await p.request.post("/api/logout").catch(() => {});

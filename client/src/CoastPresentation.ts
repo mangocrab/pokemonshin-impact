@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { graphicsOptions, type GameSettings } from "../../shared/settings";
 import { travelerStep, travelerFrame, type TravelerStep } from "../../shared/presentation";
 import { ObjectRelief } from "./ObjectRelief";
+import { GroundContacts } from "./GroundContacts";
 /** Painted diffuse atlas with an independent geometric normal map, matching authoritative terrain. */
 function paintedTiles(scene: Phaser.Scene) {
   const source = scene.textures.get("terrain-art").getSourceImage() as HTMLImageElement;
@@ -63,7 +64,7 @@ function coastTexture(scene: Phaser.Scene) {
 export class CoastPresentation {
   private terrain: Phaser.GameObjects.Image;
   private waves: Phaser.GameObjects.Graphics;
-  private shadows = new Set<Phaser.GameObjects.Shape>();
+  private contacts: GroundContacts;
   private leaves: { sprite: Phaser.GameObjects.Image; angle: number; phase: number }[] = [];
   private motes: Phaser.GameObjects.Arc[] = [];
   private light: Phaser.GameObjects.Light;
@@ -74,6 +75,7 @@ export class CoastPresentation {
   private relief: ObjectRelief;
   constructor(private scene: Phaser.Scene) {
     this.relief = new ObjectRelief(scene);
+    this.contacts = new GroundContacts(scene);
     scene.add.tileSprite(1000, 500, 2000, 1000, "terrain-art", "water").setTileScale(0.5).setDepth(-110);
     coastTexture(scene);
     this.terrain = scene.add.image(800, 500, "coast-relief").setDisplaySize(1600, 1000).setDepth(-100);
@@ -89,7 +91,7 @@ export class CoastPresentation {
     for (let i = 0; i < 18; i++) this.motes.push(scene.add.circle(140 + (i * 83) % 1350, 360 + (i * 59) % 580, 1 + i % 2, 0xd9f2ff, 0.4).setDepth(2000));
   }
   get motionEnabled() { return this.options.motion; }
-  get reliefState() { return this.relief.summary; }
+  get reliefState() { return { ...this.relief.summary, groundContacts: this.contacts.summary }; }
   travelerShadow(sprite: Phaser.GameObjects.Container) { return this.relief.shadowFrame(sprite.getByName("traveler-body") as Phaser.GameObjects.Image); }
   travelerOcclusion(sprite: Phaser.GameObjects.Container) { return this.relief.receivingState(sprite.getByName("traveler-body") as Phaser.GameObjects.Image); }
   finishObjects() { this.relief.scan(this.scene.children.list); }
@@ -100,10 +102,7 @@ export class CoastPresentation {
     if (!registered) sprite.once("destroy", () => this.travelers.delete(sprite));
     this.relief.register(sprite.getByName("traveler-body") as Phaser.GameObjects.Image);
   }
-  shadow<T extends Phaser.GameObjects.Shape>(sprite: T): T {
-    this.shadows.add(sprite); sprite.setVisible(this.options.shadows);
-    sprite.once("destroy", () => this.shadows.delete(sprite)); return sprite;
-  }
+  shadow(sprite: Phaser.GameObjects.Ellipse) { return this.contacts.register(sprite); }
   foliage(sprite: Phaser.GameObjects.Image, angle: number) {
     this.leaves.push({ sprite, angle, phase: this.leaves.length * 0.7 });
   }
@@ -113,7 +112,7 @@ export class CoastPresentation {
     this.terrain.setLighting(this.options.lighting);
     this.relief.configure(this.options.lighting, this.options.shadows, settings.quality === "high");
     if (this.options.lighting) this.scene.lights.enable(); else this.scene.lights.disable();
-    for (const shadow of this.shadows) shadow.setVisible(this.options.shadows);
+    this.contacts.configure(this.options.shadows);
     for (const mote of this.motes) mote.setVisible(this.options.effects && this.options.motion);
     for (const leaf of this.leaves) leaf.sprite.setAngle(leaf.angle);
     this.last = -Infinity;
@@ -137,7 +136,7 @@ export class CoastPresentation {
       const body = sprite.getByName("traveler-body") as Phaser.GameObjects.Image;
       body.setFrame(travelerFrame(step, time, active && this.options.motion)).setY(5).setAngle(0).setFlipX(false);
     }
-    this.relief.update();
+    this.relief.update(); this.contacts.update();
     if (!active || !this.options.motion || time - this.last < (this.quality === "low" ? 100 : 33)) return;
     this.last = time; this.drawWaves(time);
     for (const leaf of this.leaves) leaf.sprite.setAngle(leaf.angle + Math.sin(time * 0.0012 + leaf.phase) * 0.8);

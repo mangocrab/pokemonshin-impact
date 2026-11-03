@@ -23,7 +23,8 @@ test("individual normals and projected shadows follow frames and quality switche
     await expect.poll(async () => (await state()).atlases).toBe(2);
     const initial = await state();
     expect(initial.objects).toBeGreaterThanOrEqual(18); expect(initial.normalFrames).toBe(24);
-    expect(initial.litObjects).toBe(initial.objects); expect(initial.projectedShadows).toBe(initial.objects);
+    expect(initial.litObjects).toBe(initial.objects); expect(initial.visibleObjects).toBe(initial.objects - 1); // Sanctuary chest is still hidden.
+    expect(initial.projectedShadows).toBe(initial.visibleObjects);
     let panel = await open();
     await panel.getByLabel("움직임 줄이기", { exact: true }).check(); await panel.getByLabel("환경 효과", { exact: true }).uncheck(); await save();
     await surface.screenshot({ path: testInfo.outputPath("normals-and-shadows.png") });
@@ -35,14 +36,14 @@ test("individual normals and projected shadows follow frames and quality switche
     await expect.poll(async () => (await state()).litObjects).toBe(0);
     await surface.screenshot({ path: testInfo.outputPath("unlit-without-shadows.png") });
     panel = await open(); await panel.getByLabel("그림자", { exact: true }).check(); await save();
-    await expect.poll(async () => (await state()).projectedShadows).toBe(initial.objects);
+    await expect.poll(async () => (await state()).projectedShadows).toBe(initial.visibleObjects);
     expect((await state()).litObjects).toBe(0);
     panel = await open(); await panel.getByLabel("동적 조명", { exact: true }).check();
     await panel.getByLabel("그래픽 품질", { exact: true }).selectOption("low"); await save();
     await page.reload(); await expect(page.getByRole("status")).toContainText("불러왔습니다", { timeout: 15000 });
     await expect.poll(async () => (await state()).objects).toBe(initial.objects);
     expect((await state()).atlases).toBe(0); expect((await state()).litObjects).toBe(0);
-    await expect.poll(async () => (await state()).projectedShadows).toBe(initial.objects);
+    await expect.poll(async () => (await state()).projectedShadows).toBe(initial.visibleObjects);
     await page.evaluate(() => { (window as any).__reliefCanvas = document.querySelector("canvas"); });
     panel = await open(); await panel.getByLabel("그래픽 품질", { exact: true }).selectOption("high");
     await panel.getByLabel("움직임 줄이기", { exact: true }).uncheck(); await save();

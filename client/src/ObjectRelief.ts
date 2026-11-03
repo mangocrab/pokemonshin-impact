@@ -2,6 +2,7 @@ import Phaser from "phaser";
 import { ART } from "./art-manifest";
 import { buildNormalMap, shadowLayout, shadowRasterSize, shadowBandWeights, SHADOW_BLURS, surfaceMaterial } from "../../shared/surface-relief";
 import { ReceiverShadows } from "./ReceiverShadows";
+import { worldAppearance } from "./world-appearance";
 
 type Atlas = "world" | "traveler";
 type Binding = { sprite: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; frame: string };
@@ -83,7 +84,6 @@ export class ObjectRelief {
     if (this.objects.has(sprite) || !["world-art", "traveler-art"].includes(sprite.texture.key)) return;
     if (this.ready && this.lighting) this.ensureNormals(this.atlas(sprite));
     const shadow = this.scene.add.image(sprite.x, sprite.y, "__DEFAULT").setVisible(false).setAlpha(.18).setDepth(-2);
-    sprite.parentContainer?.addAt(shadow, 0);
     this.objects.set(sprite, { sprite, shadow, frame: "" });
     this.receivers.register(sprite);
     sprite.setLighting(this.ready && this.lighting).setSelfShadow(false);
@@ -114,13 +114,17 @@ export class ObjectRelief {
     if (!this.ready || !this.castShadows) { shadow.setVisible(false); return; }
     const { key, layout } = this.shadowTexture(sprite);
     if (binding.frame !== key) { shadow.setTexture(key).setOrigin(layout.originX, layout.originY); binding.frame = key; }
-    shadow.setPosition(sprite.x, sprite.y).setScale(sprite.scaleX / layout.scaleX, sprite.scaleY / layout.scaleY)
-      .setVisible(this.castShadows && sprite.visible).setAlpha(.18 * sprite.alpha);
+    const matrix = sprite.getWorldTransformMatrix(), appearance = worldAppearance(sprite);
+    // Ground projection is independent of the body's Y sort and keeps the fixed sunlight direction.
+    shadow.setPosition(matrix.tx, matrix.ty)
+      .setScale(Math.hypot(matrix.a, matrix.b) / layout.scaleX, Math.hypot(matrix.c, matrix.d) / layout.scaleY)
+      .setVisible(this.castShadows && appearance.visible).setAlpha(.18 * appearance.alpha);
   }
   update() { for (const binding of this.objects.values()) this.sync(binding); if (this.ready) this.receivers.update(); }
   shadowFrame(sprite: Phaser.GameObjects.Image) { return this.objects.get(sprite)?.shadow.texture.key ?? ""; }
   receivingState(sprite: Phaser.GameObjects.Image) { return this.receivers.state(sprite); }
-  get summary() { return { objects: this.objects.size, atlases: this.normals.size,
+  get summary() { return { objects: this.objects.size,
+    visibleObjects: [...this.objects.values()].filter(b => worldAppearance(b.sprite).visible).length, atlases: this.normals.size,
     normalFrames: [...this.normals].reduce((n, atlas) => n + Object.keys(ART[atlas].frames).length, 0),
     litObjects: [...this.objects.values()].filter((b) => b.sprite.lighting).length,
     projectedShadows: [...this.objects.values()].filter((b) => b.shadow.visible).length,
