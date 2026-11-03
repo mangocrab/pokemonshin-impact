@@ -70,11 +70,11 @@ export class CoastPresentation {
     for (let x = 1550; x < 1680; x += 16) scene.add.line(0, 0, x, 760, x, 840, 0x70543b, 0.22).setOrigin(0).setDepth(-79);
     scene.add.text(1710, 700, "물결의 안뜰", { fontSize: "20px", color: "#3f6b5b" }).setDepth(-80);
     this.waves = scene.add.graphics().setDepth(-90);
-    scene.lights.enable().setAmbientColor(0xd6e4da);
-    this.light = scene.lights.addLight(550, 100, 1400, 0xffecd0, 0.16);
+    scene.lights.enable().setAmbientColor(0xe4eeff);
+    this.light = scene.lights.addLight(550, 100, 1400, 0xfff5df, 0.18);
     this.terrain.setCrop(0, 0, 785, 500);
     this.terrain.setLighting(true).setSelfShadow(false);
-    for (let i = 0; i < 18; i++) this.motes.push(scene.add.circle(140 + (i * 83) % 1350, 360 + (i * 59) % 580, 1 + i % 2, 0xfff4cc, 0.35).setDepth(2000));
+    for (let i = 0; i < 18; i++) this.motes.push(scene.add.circle(140 + (i * 83) % 1350, 360 + (i * 59) % 580, 1 + i % 2, 0xd9f2ff, 0.4).setDepth(2000));
   }
   get motionEnabled() { return this.options.motion; }
   shadow<T extends Phaser.GameObjects.Shape>(sprite: T): T {
@@ -98,7 +98,7 @@ export class CoastPresentation {
   private drawWaves(time: number) {
     this.waves.clear();
     for (let band = 0; band < 3; band++) {
-      this.waves.lineStyle(2 - band * 0.4, 0xf0ffef, 0.45 - band * 0.1).beginPath();
+      this.waves.lineStyle(2 - band * 0.4, 0xe5fbff, 0.45 - band * 0.1).beginPath();
       for (let x = 0; x <= 1600; x += 16) {
         const y = 252 - band * 34 + Math.sin(x / 125 + time * 0.0006 + band) * 7;
         if (x === 0) this.waves.moveTo(x, y); else this.waves.lineTo(x, y);

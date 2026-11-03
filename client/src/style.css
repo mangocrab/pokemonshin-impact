@@ -1120,3 +1120,85 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:3px so
 @media(max-width:760px) { .art-icon { width:18px; height:18px; margin-right:3px; } }
 .painted-banner, .painted-banner p, .painted-banner h2, .painted-banner h3 { color:#fff4df; }
 .painted-banner > small { color:#e5e4cf; }
+
+/* Celestial anime direction: sapphire, ivory and restrained gold accents. */
+:root { color:#273c5b; background:#eef3fc; }
+main > aside { background:linear-gradient(175deg,#111f43,#203c6b); border-right:1px solid #d7bd7c55; }
+main > aside .brand { color:#f5e5b9; }
+main > aside .chapter, main > aside footer, main > aside nav button { color:#b4c7e7; }
+main > aside nav button.active { color:#fff8e8; background:linear-gradient(110deg,#345f9d,#244576); box-shadow:inset 2px 0 #e5c783,0 4px 14px #08172a30; }
+main > aside nav button:hover { color:#fff7e0; background-color:#284a76; }
+.content { background:radial-gradient(ellipse at 85% 0,#e4eeff,transparent 65%); }
+.heading h1 { color:#1d3561; font-weight:650; letter-spacing:-0.035em; }
+.eyebrow, .heading .eyebrow { color:#a37c35; letter-spacing:0.22em; }
+header { border-color:#cdd9ed; }
+header .badge, .wallet-bar { color:#344f7d; background:#e0eafa; border:1px solid #c9d6eb; }
+.viewport { border:1px solid #b6ccdf; box-shadow:0 10px 30px #203f701a; }
+.location, .exploration-hud span { color:#263f68; background:#f5f9ffed; border:1px solid #c4d6ee; }
+.exploration-hud button { background:linear-gradient(135deg,#356fb2,#284d87); border-color:#d9c383; box-shadow:0 3px 10px #1b3c652e; }
+.hint { background:#172b52d9; border:1px solid #f0dba355; }
+.quest-tracker { border-left-color:#b49a5c; background:#f7faff; color:#2b4265; }
+.modal { background:#0d193a80; }
+.modal article { background:linear-gradient(155deg,#fffefa,#eef4ff); border:1px solid #d7c798; box-shadow:0 20px 90px #0d1d4566; }
+.modal small { color:#697ba3; }
+.modal button { background:linear-gradient(135deg,#376caa,#294c82); box-shadow:0 2px 5px #1c3b6520; }
+.modal button:focus-visible { outline-color:#bf934a; }
+.modal h2, .modal h3 { color:#253f6d; }
+.modal p { color:#526581; }
+.quest-card, .training-summary, .character-stats, .battle-log, .battle-items, .coop-party { background:#e9f0fb; border-color:#c9d9ee; }
+.quest-card .quest-reward { color:#906b31; }
+.quest-card small { color:#536f9c; }
+.quest-card { border:1px solid #cfdbed; }
+.battle-field { background:radial-gradient(ellipse at 50% 0,#deefff66,transparent 75%),linear-gradient(#69bce1 0 28%,#d2ebfb 29% 30%,#f4e7c7 31% 100%); border:1px solid #a9c9e7; }
+.health-track { background:#bbd0e8; }
+.health-track i { background:linear-gradient(90deg,#3278be,#64c4dd); }
+.enemy-health i { background:linear-gradient(90deg,#bb6683,#e9a681); }
+.battle-illustration { height:174px; width:130px; filter:drop-shadow(0 5px 4px #1c3d6530); }
+.enemy-illustration { width:150px; }
+.training-illustration { width:144px; height:215px; }
+.enemy-intent { background:#f6efdf; border:1px solid #dac38e; box-shadow:0 3px 9px #223a5a20; }
+.enemy-intent strong { color:#5a482c; }
+.enemy-intent p, .enemy-intent small { color:#705d3e; }
+.reconnect-notice { border:1px solid #d4bd8e; }
+.painted-banner { background:radial-gradient(ellipse at 82% 45%,#7da1d7 0%,transparent 52%),linear-gradient(125deg,#142a5d,#3e407d); border:1px solid #cbb47c; }
+.painted-banner h2, .painted-banner h3, .painted-banner p { color:#fff4df; }
+.painted-banner > small { color:#dfd3b3; }
+.painted-banner .draw-buttons button { border:1px solid #ddc58f; background:linear-gradient(135deg,#376caa,#294c82); }
+.banner-illustration { height:300px; width:210px; }
+.rarity-5 { border-color:#d2ad58; box-shadow:inset 0 0 24px #ddc27d22; }
+.rarity-4 { border-color:#a18bc5; }
+.region-map { box-shadow:0 3px 12px #16345f1c; }
+.region-map text { fill:#294c73; }
+.puzzle-clue { background:#e7effb; border-left-color:#638dc2; }
+input, select { accent-color:#376caa; }
+
+/* Illustrated opening scene; account controls retain their existing behavior. */
+.auth-overlay { overflow:auto; display:flex; align-items:center; justify-content:flex-start; isolation:isolate; padding:130px 7vw 32px; background:#0e2656; }
+.auth-key-art { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:62% center; z-index:-2; }
+.auth-overlay::before { content:""; position:fixed; inset:0; background:linear-gradient(90deg,#081d4899 0%,#0d285c40 38%,transparent 72%); z-index:-1; pointer-events:none; }
+.auth-identity { position:absolute; top:5vh; left:7vw; color:#fff9e8; text-shadow:0 3px 16px #071d4b; }
+.auth-identity > span { color:#f0d391; margin-right:13px; font-size:30px; }
+.auth-identity > b { font-family:Georgia,serif; font-size:clamp(36px,5vw,68px); font-weight:500; letter-spacing:0.15em; }
+.auth-identity > small { display:block; color:#eee4c6; letter-spacing:0.45em; margin-left:49px; font-size:12px; }
+.auth-identity > p { color:#e2edff; margin:16px 0 0; font-size:13px; letter-spacing:0.08em; }
+.modal .auth-panel { width:min(390px,100%); background:linear-gradient(150deg,#12284beF,#213965ed); border:1px solid #d1b879a6; color:#f4f7ff; box-shadow:0 20px 70px #09173666; border-radius:12px; }
+.auth-panel h2 { color:#fff3d4; font-weight:600; font-size:22px; }
+.auth-panel > small { color:#d8c38d; }
+.auth-panel p { color:#c6d8ef; }
+.auth-panel input { width:100%; color:#1c3457; background:#f3f7ff; border:1px solid #aabfda; box-shadow:inset 0 1px 3px #173c5620; }
+.auth-panel form button { width:100%; border:1px solid #e4c58a; color:#12274b; background:linear-gradient(100deg,#e4c686,#fff1bc); font-weight:650; }
+.auth-panel > button { width:100%; color:#dceaff; background:transparent; border:1px solid #b2cbea66; }
+.auth-panel [role=alert] { color:#ffced0; }
+@media(max-width:760px) {
+  .battle-illustration { width:94px; height:136px; }
+  .enemy-illustration { width:110px; }
+  .training-illustration { width:88px; height:150px; }
+  .banner-illustration { width:160px; height:250px; }
+  .auth-overlay { padding:175px 20px 24px; align-items:center; justify-content:center; }
+  .auth-key-art { object-position:65% center; }
+  .auth-overlay::before { background:linear-gradient(180deg,#071c4a40,#0d20478c); }
+  .auth-identity { left:24px; top:24px; }
+  .auth-identity > b { font-size:42px; }
+  .auth-identity > p { margin-top:10px; font-size:12px; }
+  .modal .auth-panel { padding:26px; }
+}

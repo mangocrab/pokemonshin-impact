@@ -26,6 +26,31 @@ test("painted atlases render every owned hero, world and enemy with working batt
       const art = characters.getByRole("img", { name: `${c.name} 일러스트`, exact: true });
       await expect(art).toBeVisible(); frames.add((await art.getAttribute("viewBox"))!);
       await expect(art.locator("image")).toHaveAttribute("href", "/art/heroes.webp");
+      if (c.id === "haerin") {
+        // Rasterize the real SVG: letterbox space must not expose neighboring atlas figures.
+        const outsidePixels = await art.evaluate(async (node) => {
+          const svg = node as SVGSVGElement, box = svg.getBoundingClientRect(), view = svg.viewBox.baseVal;
+          const w = Math.round(box.width), h = Math.round(box.height), scale = Math.min(w / view.width, h / view.height);
+          const padX = (w - view.width * scale) / 2, padY = (h - view.height * scale) / 2;
+          const clone = svg.cloneNode(true) as SVGSVGElement;
+          clone.setAttribute("width", String(w)); clone.setAttribute("height", String(h));
+          const asset = await (await fetch("/art/heroes.webp")).blob();
+          const data = await new Promise<string>((resolve) => { const reader = new FileReader(); reader.onload = () => resolve(reader.result as string); reader.readAsDataURL(asset); });
+          clone.querySelector("image")!.setAttribute("href", data);
+          const url = URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(clone)], { type: "image/svg+xml" }));
+          try {
+            const image = new Image(); image.src = url; await image.decode();
+            const canvas = document.createElement("canvas"); canvas.width = w; canvas.height = h;
+            const ctx = canvas.getContext("2d")!; ctx.drawImage(image, 0, 0, w, h); const pixels = ctx.getImageData(0, 0, w, h).data;
+            let painted = 0, visible = 0;
+            for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if ((x < padX - 2 || x > w - padX + 1 || y < padY - 2 || y > h - padY + 1) && pixels[(y * w + x) * 4 + 3] > 0) painted++;
+            for (let i = 3; i < pixels.length; i += 4) if (pixels[i] > 100) visible++;
+            return { outside: painted, visible };
+          } finally { URL.revokeObjectURL(url); }
+        });
+        expect(outsidePixels.outside).toBe(0);
+        expect(outsidePixels.visible).toBeGreaterThan(100);
+      }
     }
     expect(frames.size).toBe(8);
     await page.screenshot({ path: testInfo.outputPath("painted-character.png") });

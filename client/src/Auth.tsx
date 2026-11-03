@@ -4,8 +4,10 @@ export function Auth({ onLogin }: { onLogin: () => void }) {
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   return (
-    <div className="modal">
-      <article>
+    <div className="modal auth-overlay" role="dialog" aria-modal="true" aria-label={register ? "회원가입" : "로그인"}>
+      <img className="auth-key-art" src="/art/key-visual.webp" alt="별빛 해안의 해린과 미라" fetchPriority="high" />
+      <div className="auth-identity"><span aria-hidden="true">✦</span><b>SOLARA</b><small>소라빛 여름</small><p>별빛을 따라, 너만의 여름으로.</p></div>
+      <article className="auth-panel">
         <small>WELCOME TO SOLARA</small>
         <h2>{register ? "새로운 여름의 시작" : "다시 만난 여름"}</h2>
         <p>나만의 해안으로 떠나세요.</p>

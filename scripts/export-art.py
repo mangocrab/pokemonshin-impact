@@ -10,16 +10,28 @@ SETS = {
     'heroes': (4, 2, ['haerin', 'luna', 'somi', 'taeo', 'mira', 'nari', 'yeoha', 'ijun']),
     'world': (4, 3, ['palm', 'cottage', 'chest', 'chest-open', 'coral-crab', 'sanctuary-bloom', 'altar', 'lantern', 'daon', 'moru', 'serin', 'traveler']),
     'terrain': (4, 1, ['water', 'sand', 'grass', 'wood']),
+    'key-visual': (1, 1, ['scene']),
 }
 manifest = {}
 for name, (cols, rows, ids) in SETS.items():
     im = Image.open(ROOT / f'art/source/{name}.png')
     width, height = im.size
     im.save(OUT / f'{name}.webp', 'WEBP', quality=88, method=6)
+    # Generated sheets can have slightly unequal row gutters; use actual transparent
+    # separator scanlines rather than cutting through a neighboring character's hat.
+    row_cuts = [round(r * height / rows) for r in range(rows + 1)]
+    if im.mode == 'RGBA' and rows > 1:
+        ink = im.getchannel('A').point(lambda a: 255 if a > 100 else 0)
+        for r in range(1, rows):
+            expected = row_cuts[r]
+            radius = max(1, round(height / rows * 0.14))
+            gaps = [y for y in range(max(1, expected-radius), min(height, expected+radius+1)) if ink.crop((0, y, width, y+1)).getbbox() is None]
+            if gaps:
+                row_cuts[r] = min(gaps, key=lambda y: abs(y - expected))
     frames = {}
     for i, key in enumerate(ids):
-        x, y = round(i % cols * width / cols), round(i // cols * height / rows)
-        right, bottom = round((i % cols + 1) * width / cols), round((i // cols + 1) * height / rows)
+        x, y = round(i % cols * width / cols), row_cuts[i // cols]
+        right, bottom = round((i % cols + 1) * width / cols), row_cuts[i // cols + 1]
         # The frame is atlas metadata; the original pixels are never cropped or rearranged.
         if im.mode == 'RGBA':
             bounds = im.getchannel('A').crop((x, y, right, bottom)).point(lambda a: 255 if a > 100 else 0).getbbox()

@@ -2,162 +2,162 @@
   "frames": {
     "haerin": {
       "frame": {
-        "x": 124,
-        "y": 7,
-        "w": 185,
-        "h": 429
+        "x": 29,
+        "y": 10,
+        "w": 391,
+        "h": 428
       },
       "rotated": false,
       "trimmed": false,
       "sourceSize": {
-        "w": 185,
-        "h": 429
+        "w": 391,
+        "h": 428
       },
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 185,
-        "h": 429
+        "w": 391,
+        "h": 428
       }
     },
     "luna": {
       "frame": {
-        "x": 498,
+        "x": 505,
         "y": 7,
-        "w": 277,
-        "h": 429
+        "w": 307,
+        "h": 426
       },
       "rotated": false,
       "trimmed": false,
       "sourceSize": {
-        "w": 277,
-        "h": 429
+        "w": 307,
+        "h": 426
       },
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 277,
-        "h": 429
+        "w": 307,
+        "h": 426
       }
     },
     "somi": {
       "frame": {
-        "x": 981,
+        "x": 940,
         "y": 6,
-        "w": 229,
-        "h": 430
+        "w": 334,
+        "h": 426
       },
       "rotated": false,
       "trimmed": false,
       "sourceSize": {
-        "w": 229,
-        "h": 430
+        "w": 334,
+        "h": 426
       },
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 229,
-        "h": 430
+        "w": 334,
+        "h": 426
       }
     },
     "taeo": {
       "frame": {
-        "x": 1435,
-        "y": 3,
-        "w": 215,
-        "h": 441
+        "x": 1399,
+        "y": 4,
+        "w": 293,
+        "h": 433
       },
       "rotated": false,
       "trimmed": false,
       "sourceSize": {
-        "w": 215,
-        "h": 441
+        "w": 293,
+        "h": 433
       },
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 215,
-        "h": 441
+        "w": 293,
+        "h": 433
       }
     },
     "mira": {
       "frame": {
-        "x": 86,
+        "x": 46,
         "y": 445,
-        "w": 256,
-        "h": 438
+        "w": 358,
+        "h": 437
       },
       "rotated": false,
       "trimmed": false,
       "sourceSize": {
-        "w": 256,
-        "h": 438
+        "w": 358,
+        "h": 437
       },
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 256,
-        "h": 438
+        "w": 358,
+        "h": 437
       }
     },
     "nari": {
       "frame": {
-        "x": 540,
-        "y": 447,
-        "w": 227,
-        "h": 435
+        "x": 499,
+        "y": 450,
+        "w": 327,
+        "h": 431
       },
       "rotated": false,
       "trimmed": false,
       "sourceSize": {
-        "w": 227,
-        "h": 435
+        "w": 327,
+        "h": 431
       },
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 227,
-        "h": 435
+        "w": 327,
+        "h": 431
       }
     },
     "yeoha": {
       "frame": {
-        "x": 953,
-        "y": 448,
-        "w": 258,
-        "h": 435
+        "x": 926,
+        "y": 451,
+        "w": 339,
+        "h": 430
       },
       "rotated": false,
       "trimmed": false,
       "sourceSize": {
-        "w": 258,
-        "h": 435
+        "w": 339,
+        "h": 430
       },
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 258,
-        "h": 435
+        "w": 339,
+        "h": 430
       }
     },
     "ijun": {
       "frame": {
-        "x": 1441,
-        "y": 444,
-        "w": 210,
-        "h": 440
+        "x": 1405,
+        "y": 448,
+        "w": 253,
+        "h": 433
       },
       "rotated": false,
       "trimmed": false,
       "sourceSize": {
-        "w": 210,
-        "h": 440
+        "w": 253,
+        "h": 433
       },
       "spriteSourceSize": {
         "x": 0,
         "y": 0,
-        "w": 210,
-        "h": 440
+        "w": 253,
+        "h": 433
       }
     }
   },

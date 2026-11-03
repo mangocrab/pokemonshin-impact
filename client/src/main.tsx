@@ -40,7 +40,7 @@ function App() {
   }, []);
   const status = useCallback((v: boolean) => setConnected(v), []);
   return (
-    <SettingsProvider key={user?.id ?? "guest"} enabled={Boolean(user)}><main>
+    <SettingsProvider key={user?.id ?? "guest"} enabled={Boolean(user)}><main data-theme="celestial-anime">
       <aside>
         <a className="brand">
           ✺

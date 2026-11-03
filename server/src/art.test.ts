@@ -7,6 +7,10 @@ import { NPCS } from "../../shared/story.js";
 test("shipping art atlases cover the live roster/world, stay inside their sheets and respect the 2 MiB download budget", () => {
   for (const c of CHARACTERS) assert.ok(c.id in ART.heroes.frames, c.id);
   for (const n of [...NPCS, ...ENCOUNTERS]) assert.ok(n.id in ART.world.frames, n.id);
+  for (const [upper, lower] of [["coral-crab", "daon"], ["sanctuary-bloom", "moru"], ["altar", "serin"], ["lantern", "traveler"]] as const) {
+    const a = ART.world.frames[upper], b = ART.world.frames[lower];
+    assert.ok(a.y + a.h < b.y, `${upper}/${lower} need a transparent row gutter`);
+  }
   let total = 0;
   for (const [name, sheet] of Object.entries(ART)) {
     const path = `client/public/art/${name}.webp`, bytes = readFileSync(path);
