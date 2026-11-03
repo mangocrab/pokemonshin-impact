@@ -1,5 +1,6 @@
 import { ArtIcon } from "./ArtIcon";
 import { Art } from "./Art";
+import { useBattlePresentation, ResultChips, BurstCutIn } from "./BattleFeedback";
 import { CONSUMABLES, itemUnavailable } from "../../shared/items";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -40,6 +41,7 @@ export function Battle({
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const [now, setNow] = useState(Date.now());
+  const { feedback, options: presentation } = useBattlePresentation(battle);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -221,9 +223,13 @@ export function Battle({
           <p>{blockedReason(battle.enemy, battle.round) ? `이 라운드에는 ${battle.enemy.name}가 행동할 수 없습니다. 공격하거나 회복할 기회입니다.` : `위력 ${enemySkillForRound(battle.enemy.id, battle.round).power} · 기본 명중률 ${Math.round(enemySkillForRound(battle.enemy.id, battle.round).accuracy * 100)}%. ${enemySkillForRound(battle.enemy.id, battle.round).description}`}</p>
           <small>자연 속성 · 잎새 바람 → 휘감는 줄기 → 한여름의 만개 순환. 만개 후 다음 라운드는 쉽니다.{coop && " 협동 만개는 생존한 출전 캐릭터 모두를 공격합니다."}</small>
         </section>}
-        <div className="battle-field">
+        <div className="battle-field" data-motion={presentation.motion} data-effects={presentation.effects}>
+          {feedback?.burst && <BurstCutIn key={feedback.key} burst={feedback.burst} />}
           <div className="combatant">
-            <Art id={active.id} label={`${active.name} 일러스트`} className="battle-illustration" />
+            <div key={`ally:${feedback?.key ?? "idle"}`} data-impact={feedback?.ally.some((c) => c.kind === "damage") || undefined}>
+              {feedback && <ResultChips chips={feedback.ally} />}
+              <Art id={active.id} label={`${active.name} 일러스트`} className="battle-illustration" />
+            </div>
             <h3><ArtIcon id={active.element} />{active.name}</h3>
             <div
               className="health-track"
@@ -246,7 +252,10 @@ export function Battle({
           </div>
           <span className="versus">VS</span>
           <div className="combatant">
-            <Art set="world" id={battle.enemy.id === SANCTUARY_ENCOUNTER.id ? "sanctuary-bloom" : "coral-crab"} label={`${battle.enemy.name} 일러스트`} className="battle-illustration enemy-illustration" />
+            <div key={`enemy:${feedback?.key ?? "idle"}`} data-impact={feedback?.enemy.some((c) => c.kind === "damage") || undefined}>
+              {feedback && <ResultChips chips={feedback.enemy} />}
+              <Art set="world" id={battle.enemy.id === SANCTUARY_ENCOUNTER.id ? "sanctuary-bloom" : "coral-crab"} label={`${battle.enemy.name} 일러스트`} className="battle-illustration enemy-illustration" />
+            </div>
             <h3><ArtIcon id={battle.enemy.element} />{battle.enemy.name}</h3>
             <div
               className="health-track enemy-health"

@@ -191,14 +191,13 @@ export function Game({
           this.presentation.shadow(this.add.ellipse(0, 7, 28, 11, 0x244a48, 0.2)),
           this.add.image(0, 5, "world-art", "traveler").setOrigin(0.5, 1).setDisplaySize(45, 62),
         ]);
+        this.presentation.traveler(this.player);
         this.cameras.main
           .setBounds(0, 0, WORLD.width, WORLD.height)
           .startFollow(this.player, true, 0.12, 0.12, 0, 100);
         this.keys = this.input.keyboard!.createCursorKeys();
         this.wasd = this.input.keyboard!.addKeys("W,A,S,D") as typeof this.wasd;
         socket.on("world:position", (p: { x: number; y: number }) => {
-          const body = this.player.getAt(1) as Phaser.GameObjects.Image;
-          if (Math.abs(p.x - this.player.x) > 0.2) body.setFlipX(p.x < this.player.x);
           this.player.setPosition(p.x, p.y);
         });
         socket.on(
@@ -229,6 +228,7 @@ export function Game({
                     .setOrigin(0.5),
                 ]);
                 this.others.set(p.userId, sprite);
+                this.presentation.traveler(sprite);
               }
               sprite
                 .setPosition(p.position.x, p.position.y)
@@ -281,7 +281,7 @@ export function Game({
         socket.connect();
       }
       update(t: number) {
-        if (activeRef.current) this.presentation.update(t);
+        this.presentation.update(t, activeRef.current);
         this.player.setDepth(this.player.y);
         if (t - this.sent < 50) return;
         this.sent = t;
@@ -318,8 +318,6 @@ export function Game({
           x = 0;
           y = 0;
         }
-        const body = this.player.getAt(1) as Phaser.GameObjects.Image;
-        body.y = 5 + (activeRef.current && this.presentation.motionEnabled && (x || y) ? Math.sin(t * 0.018) * 1.2 : 0);
         if (ready) socket.emit("world:move", { x, y });
       }
     }

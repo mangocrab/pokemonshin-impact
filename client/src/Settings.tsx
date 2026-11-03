@@ -72,7 +72,7 @@ export function Settings({ onClose }: { onClose: () => void }) {
         <label className="setting-row">그래픽 품질<select aria-label="그래픽 품질" value={draft.quality} onChange={(e) => change("quality", e.target.value as GameSettings["quality"])}><option value="high">높음</option><option value="low">낮음 · 저사양</option></select></label>
         <p className="setting-help">낮음에서는 동적 조명과 환경 입자를 끄고 배경 움직임 갱신을 줄입니다.</p>
         {([ ["lighting", "동적 조명"], ["shadows", "그림자"], ["ambientEffects", "환경 효과"], ["reducedMotion", "움직임 줄이기"] ] as const).map(([key, label]) => <label className="setting-row" key={key}>{label}<input type="checkbox" checked={draft[key]} onChange={(e) => change(key, e.target.checked)} /></label>)}
-        <p className="setting-help">움직임 줄이기는 파도·식물·입자 애니메이션을 멈춥니다. 기기의 움직임 감소 설정도 따릅니다.</p>
+        <p className="setting-help">움직임 줄이기는 파도·식물·입자·걷기·전투 연출을 멈춥니다. 전투 결과는 정지된 표시와 기록으로 확인할 수 있습니다. 기기의 움직임 감소 설정도 따릅니다.</p>
       </fieldset>
       <fieldset disabled={!ready || busy}>
         <legend>소리</legend>

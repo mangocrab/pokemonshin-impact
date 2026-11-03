@@ -1,6 +1,7 @@
 import { ART } from "./art-manifest";
 import Phaser from "phaser";
 import { graphicsOptions, type GameSettings } from "../../shared/settings";
+import { travelerStep, travelerPose, type TravelerStep } from "../../shared/presentation";
 /** Painted diffuse atlas with an independent geometric normal map, matching authoritative terrain. */
 function paintedTiles(scene: Phaser.Scene) {
   const source = scene.textures.get("terrain-art").getSourceImage() as HTMLImageElement;
@@ -61,6 +62,7 @@ export class CoastPresentation {
   private options = { lighting: true, shadows: true, effects: true, motion: true };
   private last = -Infinity;
   private quality: "high" | "low" = "high";
+  private travelers = new Map<Phaser.GameObjects.Container, TravelerStep>();
   constructor(private scene: Phaser.Scene) {
     scene.add.tileSprite(1000, 500, 2000, 1000, "terrain-art", "water").setTileScale(0.5).setDepth(-110);
     coastTexture(scene);
@@ -77,6 +79,10 @@ export class CoastPresentation {
     for (let i = 0; i < 18; i++) this.motes.push(scene.add.circle(140 + (i * 83) % 1350, 360 + (i * 59) % 580, 1 + i % 2, 0xd9f2ff, 0.4).setDepth(2000));
   }
   get motionEnabled() { return this.options.motion; }
+  traveler(sprite: Phaser.GameObjects.Container) {
+    this.travelers.set(sprite, { x: sprite.x, y: sprite.y, phase: 0, movingUntil: 0, facingLeft: false });
+    sprite.once("destroy", () => this.travelers.delete(sprite));
+  }
   shadow<T extends Phaser.GameObjects.Shape>(sprite: T): T {
     this.shadows.add(sprite); sprite.setVisible(this.options.shadows);
     sprite.once("destroy", () => this.shadows.delete(sprite)); return sprite;
@@ -106,8 +112,15 @@ export class CoastPresentation {
       this.waves.strokePath();
     }
   }
-  update(time: number) {
-    if (!this.options.motion || time - this.last < (this.quality === "low" ? 100 : 33)) return;
+  update(time: number, active = true) {
+    for (const [sprite, old] of this.travelers) {
+      const step = travelerStep(old, sprite, time);
+      this.travelers.set(sprite, active ? step : { ...step, movingUntil: 0 });
+      const pose = travelerPose(step, time, active && this.options.motion);
+      const body = sprite.getAt(1) as Phaser.GameObjects.Image;
+      body.setY(pose.y).setAngle(pose.angle).setFlipX(pose.facingLeft);
+    }
+    if (!active || !this.options.motion || time - this.last < (this.quality === "low" ? 100 : 33)) return;
     this.last = time; this.drawWaves(time);
     for (const leaf of this.leaves) leaf.sprite.setAngle(leaf.angle + Math.sin(time * 0.0012 + leaf.phase) * 0.8);
     if (this.options.lighting) this.light.setPosition(550 + Math.sin(time * 0.00012) * 70, 100);
