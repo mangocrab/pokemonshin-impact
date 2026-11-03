@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 import { ART } from "./art-manifest";
 import { buildNormalMap, shadowLayout, surfaceMaterial } from "../../shared/surface-relief";
+import { ReceiverShadows } from "./ReceiverShadows";
 
 type Atlas = "world" | "traveler";
 type Binding = { sprite: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; frame: string };
@@ -12,7 +13,9 @@ export class ObjectRelief {
   private lighting = false;
   private castShadows = true;
   private ready = false;
-  constructor(private scene: Phaser.Scene) {}
+  private highQuality = true;
+  private receivers: ReceiverShadows;
+  constructor(private scene: Phaser.Scene) { this.receivers = new ReceiverShadows(scene); }
   private atlas(sprite: Phaser.GameObjects.Image): Atlas { return sprite.texture.key === "traveler-art" ? "traveler" : "world"; }
   private ensureNormals(atlas: Atlas) {
     if (this.normals.has(atlas)) return;
@@ -67,6 +70,7 @@ export class ObjectRelief {
     const shadow = this.scene.add.image(sprite.x, sprite.y, "__DEFAULT").setVisible(false).setAlpha(.18).setDepth(-2);
     sprite.parentContainer?.addAt(shadow, 0);
     this.objects.set(sprite, { sprite, shadow, frame: "" });
+    this.receivers.register(sprite);
     sprite.setLighting(this.ready && this.lighting).setSelfShadow(false);
     sprite.once("destroy", () => { this.objects.delete(sprite); if (shadow.scene) shadow.destroy(); });
     this.sync(this.objects.get(sprite)!);
@@ -77,17 +81,18 @@ export class ObjectRelief {
       else if (object instanceof Phaser.GameObjects.Container) this.scan(object.list);
     }
   }
-  configure(lighting: boolean, shadows: boolean) {
-    this.lighting = lighting; this.castShadows = shadows;
+  configure(lighting: boolean, shadows: boolean, highQuality = true) {
+    this.lighting = lighting; this.castShadows = shadows; this.highQuality = highQuality;
     if (!this.ready) return;
     for (const binding of this.objects.values()) {
       if (lighting) this.ensureNormals(this.atlas(binding.sprite));
       binding.sprite.setLighting(lighting); this.sync(binding);
     }
+    this.receivers.configure(shadows && highQuality);
   }
   activate() {
     if (this.ready) return;
-    this.ready = true; this.configure(this.lighting, this.castShadows);
+    this.ready = true; this.configure(this.lighting, this.castShadows, this.highQuality);
   }
   private sync(binding: Binding) {
     const { sprite, shadow } = binding;
@@ -97,11 +102,12 @@ export class ObjectRelief {
     shadow.setPosition(sprite.x, sprite.y).setScale(sprite.scaleX / layout.scale, sprite.scaleY / layout.scale)
       .setVisible(this.castShadows && sprite.visible).setAlpha(.18 * sprite.alpha);
   }
-  update() { for (const binding of this.objects.values()) this.sync(binding); }
+  update() { for (const binding of this.objects.values()) this.sync(binding); if (this.ready) this.receivers.update(); }
   shadowFrame(sprite: Phaser.GameObjects.Image) { return this.objects.get(sprite)?.shadow.texture.key ?? ""; }
+  receivingState(sprite: Phaser.GameObjects.Image) { return this.receivers.state(sprite); }
   get summary() { return { objects: this.objects.size, atlases: this.normals.size,
     normalFrames: [...this.normals].reduce((n, atlas) => n + Object.keys(ART[atlas].frames).length, 0),
     litObjects: [...this.objects.values()].filter((b) => b.sprite.lighting).length,
     projectedShadows: [...this.objects.values()].filter((b) => b.shadow.visible).length,
-    cachedShadows: this.shadows.size, lighting: this.lighting, shadows: this.castShadows }; }
+    cachedShadows: this.shadows.size, lighting: this.lighting, shadows: this.castShadows, occlusion: this.receivers.summary }; }
 }

@@ -265,6 +265,7 @@ export function Game({
             ready = true;
             onConnection(true);
             this.player.setPosition(position.x, position.y);
+            this.cameras.main.centerOn(position.x, position.y - this.cameras.main.followOffset.y);
             this.presentation.traveler(this.player);
             refreshChests(ids);
             window.dispatchEvent(new Event("story:world"));
@@ -301,6 +302,8 @@ export function Game({
           if (host.current.dataset.travelerShadow !== cast) host.current.dataset.travelerShadow = cast;
           const relief = JSON.stringify(this.presentation.reliefState);
           if (host.current.dataset.objectRelief !== relief) host.current.dataset.objectRelief = relief;
+          const receiving = JSON.stringify(this.presentation.travelerOcclusion(this.player));
+          if (host.current.dataset.travelerOcclusion !== receiving) host.current.dataset.travelerOcclusion = receiving;
         }
         this.player.setDepth(this.player.y);
         if (t - this.sent < 50) return;

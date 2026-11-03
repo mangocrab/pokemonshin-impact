@@ -91,6 +91,7 @@ export class CoastPresentation {
   get motionEnabled() { return this.options.motion; }
   get reliefState() { return this.relief.summary; }
   travelerShadow(sprite: Phaser.GameObjects.Container) { return this.relief.shadowFrame(sprite.getByName("traveler-body") as Phaser.GameObjects.Image); }
+  travelerOcclusion(sprite: Phaser.GameObjects.Container) { return this.relief.receivingState(sprite.getByName("traveler-body") as Phaser.GameObjects.Image); }
   finishObjects() { this.relief.scan(this.scene.children.list); }
   activateObjects() { this.relief.activate(); }
   traveler(sprite: Phaser.GameObjects.Container) {
@@ -110,7 +111,7 @@ export class CoastPresentation {
     this.options = graphicsOptions(settings, systemReducedMotion); this.quality = settings.quality;
     this.scene.game.loop.setFPSLimit(settings.quality === "low" ? 20 : 30);
     this.terrain.setLighting(this.options.lighting);
-    this.relief.configure(this.options.lighting, this.options.shadows);
+    this.relief.configure(this.options.lighting, this.options.shadows, settings.quality === "high");
     if (this.options.lighting) this.scene.lights.enable(); else this.scene.lights.disable();
     for (const shadow of this.shadows) shadow.setVisible(this.options.shadows);
     for (const mote of this.motes) mote.setVisible(this.options.effects && this.options.motion);
