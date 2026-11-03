@@ -9,6 +9,9 @@ import {
   SKILLS,
   ULTIMATES,
   ENCOUNTER,
+  ENEMY_DEFINITIONS,
+  enemySkillForRound,
+  type Encounter,
   EFFECTIVENESS,
   STATUS_NAMES,
   hasStatus,
@@ -50,6 +53,7 @@ export function normalizeBattle(previous: BattleState): BattleState {
 export function createBattle(
   id: string,
   characters = CHARACTERS.slice(0, 4),
+  encounter: Encounter = ENCOUNTER,
 ): BattleState {
   return {
     rulesVersion: 2,
@@ -63,16 +67,17 @@ export function createBattle(
     ),
     activeSlot: 0,
     enemy: hydrate({
-      id: ENCOUNTER.id,
-      name: ENCOUNTER.name,
-      maxHp: 220,
-      hp: 220,
-      attack: 36,
-      defense: 24,
-      speed: 38,
-      skills: ["crabPinch", "crabCrush", "crabSand"],
+      element: ENEMY_DEFINITIONS[encounter.id].element,
+      maxHp: ENEMY_DEFINITIONS[encounter.id].maxHp,
+      attack: ENEMY_DEFINITIONS[encounter.id].attack,
+      defense: ENEMY_DEFINITIONS[encounter.id].defense,
+      speed: ENEMY_DEFINITIONS[encounter.id].speed,
+      id: encounter.id,
+      name: encounter.name,
+      hp: ENEMY_DEFINITIONS[encounter.id].maxHp,
+      skills: [...new Set(ENEMY_DEFINITIONS[encounter.id].rotation)],
     }),
-    log: ["산호 집게게가 길을 막았습니다. 행동을 선택하세요."],
+    log: [`${encounter.name}와 마주쳤습니다. 행동을 선택하세요.`],
   };
 }
 export function effectiveSpeed(f: Fighter) {
@@ -300,8 +305,7 @@ export function resolveRound(
   for (const p of players) delete p.state.itemUses;
   const root = players[0].state;
   const state = root;
-  const enemySkill =
-    round % 4 === 0 ? "crabSand" : round % 3 === 0 ? "crabCrush" : "crabPinch";
+  const enemySkill = enemySkillForRound(enemy.id, round).id;
   const enemyAction: BattleAction = blockedReason(enemy, state.round)
     ? { type: "wait" }
     : enemy.preparing

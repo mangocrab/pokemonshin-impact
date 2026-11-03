@@ -1,3 +1,4 @@
+import { SANCTUARY } from "./adventure.js";
 import type { CoopView } from "./coop.js";
 export const ENCOUNTER = {
   id: "coral-crab",
@@ -6,6 +7,15 @@ export const ENCOUNTER = {
   y: 560,
   radius: 64,
 };
+export const SANCTUARY_ENCOUNTER = {
+  id: "sanctuary-bloom", name: "안뜰 꽃등지기", x: 1870, y: 720, radius: 64,
+  regionId: SANCTUARY.id,
+} as const;
+export const ENCOUNTERS = [ENCOUNTER, SANCTUARY_ENCOUNTER] as const;
+export type Encounter = (typeof ENCOUNTERS)[number];
+export function nearbyEncounter(position: { x: number; y: number }, regions: readonly string[]) {
+  return ENCOUNTERS.find((e) => (!("regionId" in e) || regions.includes(e.regionId)) && Math.hypot(position.x - e.x, position.y - e.y) <= e.radius);
+}
 export const ELEMENTS = ["불", "물", "바람", "번개", "얼음", "자연"] as const;
 export type Element = (typeof ELEMENTS)[number];
 // Only the listed relationships modify damage; all other pairs are neutral.
@@ -253,6 +263,15 @@ export const SKILLS: Record<string, Skill> = {
     ],
     description: "명중90%, 다음 라운드 행동 불가 및 실제HP피해15% 반동.",
   }),
+  bloomLeaf: skill("bloomLeaf", "잎새 바람", "자연", 80),
+  bloomRoots: skill("bloomRoots", "휘감는 줄기", "자연", 45, 0.9, {
+    statuses: [{ id: "slow", chance: 0.75, duration: 2 }],
+    description: "명중90%, 명중 시75% 확률로 둔화2라운드. 교체를 막지 않습니다.",
+  }),
+  bloomBurst: skill("bloomBurst", "한여름의 만개", "자연", 180, 1, {
+    penalties: [{ type: "recharge", duration: 1 }],
+    description: "위력180, 명중100%. 사용 후 다음 라운드 행동 불가. 방어 또는 속성 교체로 대비하세요.",
+  }),
   crabPinch: skill("crabPinch", "산호 집게", "물", 80),
   crabCrush: skill("crabCrush", "집게 내리꽂기", "물", 120, 0.8),
   crabSand: skill("crabSand", "모래 흩뿌리기", "자연", 45, 0.9, {
@@ -260,6 +279,14 @@ export const SKILLS: Record<string, Skill> = {
     description: "명중 시 명중률 감소 2라운드.",
   }),
 };
+export const ENEMY_DEFINITIONS: Record<string, { element: Element; maxHp: number; attack: number; defense: number; speed: number; rotation: string[] }> = {
+  [ENCOUNTER.id]: { element: "물", maxHp: 220, attack: 36, defense: 24, speed: 38, rotation: ["crabPinch", "crabPinch", "crabCrush", "crabSand", "crabPinch", "crabCrush", "crabPinch", "crabSand", "crabCrush", "crabPinch", "crabPinch", "crabSand"] },
+  [SANCTUARY_ENCOUNTER.id]: { element: "자연", maxHp: 320, attack: 38, defense: 28, speed: 32, rotation: ["bloomLeaf", "bloomRoots", "bloomBurst"] },
+};
+export function enemySkillForRound(enemyId: string, round: number) {
+  const pattern = (ENEMY_DEFINITIONS[enemyId] ?? ENEMY_DEFINITIONS[ENCOUNTER.id]).rotation;
+  return SKILLS[pattern[(round - 1) % pattern.length]];
+}
 export const ULTIMATES: Record<string, Skill> = {
   seaHome: skill("seaHome", "바다가 품은 약속", "물", 0, 1, {
     category: "heal",

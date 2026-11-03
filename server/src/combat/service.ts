@@ -24,7 +24,7 @@ import {
 } from "./engine.js";
 import {
   CHARACTERS,
-  ENCOUNTER,
+  ENCOUNTERS,
   type BattleState,
 } from "../../../shared/combat.js";
 const json = (value: unknown) => value as Prisma.InputJsonValue;
@@ -93,7 +93,8 @@ export function registerCombat(io: Server) {
         if (await activeCoop(u.id))
           throw new WorldError(409, "협동 전투 참여 중입니다.");
         if (req.params.operation === "start") {
-          if (req.body?.encounterId !== ENCOUNTER.id)
+          const encounter = ENCOUNTERS.find((e) => e.id === req.body?.encounterId);
+          if (!encounter)
             throw new WorldError(400, "알 수 없는 적입니다.");
           const existing = await db.battle.findUnique({
             where: { activeUserId: u.id },
@@ -102,11 +103,13 @@ export function registerCombat(io: Server) {
             actor.battleId = existing.id;
             return normalizeBattle(existing.state as unknown as BattleState);
           }
+          if ("regionId" in encounter && !(await db.worldRegion.findUnique({ where: { worldId_regionId: { worldId: actor.worldId, regionId: encounter.regionId } } })))
+            throw new WorldError(403, "먼저 이 월드의 지역을 해금하세요.");
           if (
             Math.hypot(
-              actor.position.x - ENCOUNTER.x,
-              actor.position.y - ENCOUNTER.y,
-            ) > ENCOUNTER.radius
+              actor.position.x - encounter.x,
+              actor.position.y - encounter.y,
+            ) > encounter.radius
           )
             throw new WorldError(409, "적 가까이 이동하세요.");
           if (
@@ -122,7 +125,7 @@ export function registerCombat(io: Server) {
             .filter((c) => c.slot !== null)
             .sort((a, b) => a.slot! - b.slot!)
             .slice(0, 4);
-          const state = createBattle(randomUUID(), team);
+          const state = createBattle(randomUUID(), team, encounter);
           await db.battle.create({
             data: {
               id: state.id,

@@ -11,6 +11,8 @@ import {
   hasStatus,
   type Fighter,
   ENCOUNTER,
+  SANCTUARY_ENCOUNTER,
+  enemySkillForRound,
   type BattleState,
   type BattleAction,
 } from "../../shared/combat";
@@ -139,8 +141,8 @@ export function Battle({
     }
   }
   useEffect(() => {
-    const start = () => {
-      void request("start", { encounterId: ENCOUNTER.id });
+    const start = (event: Event) => {
+      void request("start", { encounterId: (event as CustomEvent<{ encounterId: string }>).detail?.encounterId ?? ENCOUNTER.id });
     };
     const coopStart = () => {
       void request("coop/start", { encounterId: ENCOUNTER.id });
@@ -212,6 +214,11 @@ export function Battle({
             {coop ? "협동 보스 전투 · 최대 4인" : "서버 라운드 전투 · 1인"}
           </span>
         </div>
+        {!ended && !coop && battle.enemy.id === SANCTUARY_ENCOUNTER.id && <section className="enemy-intent reconnect-notice" aria-label="적 행동 예고">
+          <strong>다음 행동: {blockedReason(battle.enemy, battle.round) ? blockedReason(battle.enemy, battle.round) : enemySkillForRound(battle.enemy.id, battle.round).name}</strong>
+          <p>{blockedReason(battle.enemy, battle.round) ? "이 라운드에는 꽃등지기가 행동할 수 없습니다. 공격하거나 회복할 기회입니다." : `위력 ${enemySkillForRound(battle.enemy.id, battle.round).power} · 기본 명중률 ${Math.round(enemySkillForRound(battle.enemy.id, battle.round).accuracy * 100)}%. ${enemySkillForRound(battle.enemy.id, battle.round).description}`}</p>
+          <small>자연 속성 · 잎새 바람 → 휘감는 줄기 → 한여름의 만개 순환. 만개 후 다음 라운드는 쉽니다.</small>
+        </section>}
         <div className="battle-field">
           <div className="combatant">
             <div
@@ -246,7 +253,7 @@ export function Battle({
           <span className="versus">VS</span>
           <div className="combatant">
             <div className="enemy-art" key={`enemy-${battle.version}`}>
-              ♋
+              {battle.enemy.id === SANCTUARY_ENCOUNTER.id ? "❀" : "♋"}
             </div>
             <h3>{battle.enemy.name}</h3>
             <div

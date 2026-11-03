@@ -17,7 +17,7 @@ export type QuestDefinition = {
 };
 export const QUESTS: QuestDefinition[] = [
   { id: "first-gift", npcId: "daon", name: "여름의 첫 선물", description: "다온의 안내를 따라 개인 월드의 선물 상자를 하나 열고 돌아오세요. 이미 열린 상자도 인정됩니다.", objective: "chest", target: 1, objectiveText: "개인 월드의 선물 상자 1개 발견", completion: "첫 선물을 찾았구나! 너만의 여름이 이제 시작이야.", reward: { conch: 160, shell: 500, items: { "training-book": 2 } } },
-  { id: "coast-guardian", npcId: "daon", name: "해안의 작은 수호자", description: "부탁을 받은 뒤 자신의 월드에서 산호 집게게 또는 협동 수호게를 물리치고 다온에게 돌아오세요. 방문 전투는 이 부탁을 진행하지 않습니다.", objective: "victory", target: 1, requires: "first-gift", objectiveText: "수락 후 자신의 월드에서 전투 승리", completion: "이제 모두 조금 더 안심하고 해변을 걸을 수 있겠네. 네가 해안의 작은 수호자야!", reward: { conch: 320, shell: 1200, items: { "weapon-ore": 4 } } },
+  { id: "coast-guardian", npcId: "daon", name: "해안의 작은 수호자", description: "부탁을 받은 뒤 자신의 월드에서 산호 집게게·안뜰 꽃등지기 또는 협동 수호게를 물리치고 다온에게 돌아오세요. 방문 전투는 이 부탁을 진행하지 않습니다.", objective: "victory", target: 1, requires: "first-gift", objectiveText: "수락 후 자신의 월드에서 전투 승리", completion: "이제 모두 조금 더 안심하고 해변을 걸을 수 있겠네. 네가 해안의 작은 수호자야!", reward: { conch: 320, shell: 1200, items: { "weapon-ore": 4 } } },
   { id: "coastal-map", npcId: "moru", name: "발걸음으로 그린 지도", description: "다온의 첫 부탁을 마친 뒤 모루를 만나세요. 해안·야자수 숲·쉼터 뒤의 상자 3개를 모두 찾으면 지도를 완성할 수 있습니다. 이전 발견도 인정됩니다.", objective: "chest", target: 3, requires: "first-gift", objectiveText: "개인 월드의 선물 상자 3개 발견", completion: "세 곳의 이야기가 한 장의 지도로 이어졌어. 이 해안을 기억해 줘!", reward: { conch: 160, shell: 800, items: { "growth-stone": 3, "training-book": 2 } } },
 ];
 export type QuestView = QuestDefinition & { state: "locked" | "available" | "active" | "ready" | "claimed"; progress: number };

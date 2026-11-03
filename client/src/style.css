@@ -1090,3 +1090,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:3px so
 @media(max-width:760px) { .item-actions { grid-template-columns:1fr; } }
 .reconnect-notice { background:#f6eed6; padding:14px; border-radius:10px; margin:12px 0; }
 .reconnect-notice p { color:#766a4f; }
+
+.enemy-intent { position:sticky; top:0; z-index:2; background:#eef4e7; box-shadow:0 3px 8px #244a4820; }
+.enemy-intent strong, .enemy-intent small { display:block; }
+.enemy-intent p { margin:6px 0; font-size:12px; }
+.enemy-intent small { font-size:11px; }

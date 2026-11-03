@@ -5,7 +5,7 @@ import { useSettings } from "./Settings";
 import { graphicsOptions } from "../../shared/settings";
 import { SANCTUARY, SANCTUARY_CHEST, TIDE_PUZZLE, nearPuzzle, nearSanctuaryChest } from "../../shared/adventure";
 import { NPCS, nearbyNpc } from "../../shared/story";
-import { ENCOUNTER } from "../../shared/combat";
+import { ENCOUNTER, SANCTUARY_ENCOUNTER, nearbyEncounter, type Encounter } from "../../shared/combat";
 import { io } from "socket.io-client";
 import { WORLD, CHESTS, PALMS, nearbyChest, type Position } from "../../shared/world";
 export function Game({
@@ -30,7 +30,7 @@ export function Game({
     return () => media.removeEventListener("change", changed);
   }, []);
   const options = graphicsOptions(settings, systemReduced);
-  const [nearEnemy, setNearEnemy] = useState(false);
+  const [nearEnemy, setNearEnemy] = useState<Encounter | undefined>();
   const [isOwner, setIsOwner] = useState(true);
   const [playerCount, setPlayerCount] = useState(1);
   const [puzzleNear, setPuzzleNear] = useState(false), [regionNames, setRegionNames] = useState<string[]>([]), [secretFound, setSecretFound] = useState(false), [area, setArea] = useState("산호 해안");
@@ -204,6 +204,13 @@ export function Game({
             color: "#704c3e",
           })
           .setOrigin(0.5);
+        const bloom = SANCTUARY_ENCOUNTER;
+        this.add.container(bloom.x, bloom.y, [
+          this.presentation.shadow(this.add.ellipse(0, 9, 46, 18, 0x244a48, 0.2)),
+          ...Array.from({ length: 6 }, (_, i) => this.add.ellipse(Math.cos(i * Math.PI / 3) * 15, -14 + Math.sin(i * Math.PI / 3) * 15, 22, 18, 0xe9b96e)),
+          this.add.circle(0, -14, 12, 0x6a9f70),
+          this.add.text(0, 25, bloom.name, { fontSize: "12px", color: "#365e46" }).setOrigin(0.5),
+        ]).setDepth(bloom.y);
         for (const npc of NPCS) {
           this.add.container(npc.x, npc.y, [
             this.presentation.shadow(this.add.ellipse(3, 8, 30, 12, 0x244a48, 0.2)),
@@ -347,17 +354,7 @@ export function Game({
         setPuzzleNear(ready && activeRef.current && nearPuzzle(this.player));
         setArea(this.player.x > SANCTUARY.boundary ? SANCTUARY.name : "산호 해안");
         setNpcName(ready && activeRef.current ? nearbyNpc(this.player)?.talkLabel ?? "" : "");
-        setNearEnemy(
-          Boolean(
-            ready &&
-            owner &&
-            activeRef.current &&
-            Math.hypot(
-              this.player.x - ENCOUNTER.x,
-              this.player.y - ENCOUNTER.y,
-            ) <= ENCOUNTER.radius,
-          ),
-        );
+        setNearEnemy(ready && owner && activeRef.current ? nearbyEncounter(this.player, regions) : undefined);
         if (!activeRef.current) {
           x = 0;
           y = 0;
@@ -398,13 +395,14 @@ export function Game({
           <button
             onClick={() =>
               window.dispatchEvent(
-                new Event(playerCount > 1 ? "coop:start" : "battle:start"),
+                new CustomEvent(playerCount > 1 && nearEnemy.id === ENCOUNTER.id ? "coop:start" : "battle:start", { detail: { encounterId: nearEnemy.id } }),
               )
             }
           >
-            {playerCount > 1 ? "협동 보스전 모집" : "산호 집게게와 전투"}
+            {playerCount > 1 && nearEnemy.id === ENCOUNTER.id ? "협동 보스전 모집" : `${nearEnemy.name}와 전투`}
           </button>
         )}
+        {nearEnemy?.id === SANCTUARY_ENCOUNTER.id && <span>안뜰 도전 · 1인 전투 · 방문자가 있으면 시작할 수 없습니다</span>}
         {puzzleNear && <button onClick={() => inspect.current()}>[E] 세 파도의 종 조사</button>}
         {regionNames.includes(SANCTUARY.id) && <span>{area} · 안뜰의 선물 {secretFound ? 1 : 0}/1</span>}
         {npcName && <button onClick={() => talk.current()}>[E] {npcName}</button>}
