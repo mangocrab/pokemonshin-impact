@@ -1,3 +1,5 @@
+import { ArtIcon } from "./ArtIcon";
+import { Art } from "./Art";
 import { CONSUMABLES, consumable } from "../../shared/items";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CHARACTERS } from "../../shared/combat";
@@ -73,7 +75,7 @@ export function WalletBar() {
   }, []);
   return wallet ? (
     <span className="wallet-bar" aria-label="보유 재화">
-      소라 {wallet.conch.toLocaleString()} · 조개{" "}
+      <ArtIcon id="conch" />소라 {wallet.conch.toLocaleString()} · <ArtIcon id="shell" />조개{" "}
       {wallet.shell.toLocaleString()}
     </span>
   ) : null;
@@ -184,7 +186,8 @@ export function Collection({
             </div>
             {menu === "캐릭터 뽑기" ? (
               <>
-                <section className="banner">
+                <section className="banner painted-banner">
+                  <Art id="mira" label="미라 픽업 일러스트" className="banner-illustration" />
                   <small>SUMMER TIDE · LIMITED CHARACTER WISH</small>
                   <h2>전광이 머무는 여름</h2>
                   <h3>★★★★★ 미라 · 번개</h3>
@@ -245,6 +248,7 @@ export function Collection({
                         {"★".repeat(p.rarity)} ·{" "}
                         {p.kind === "character" ? "캐릭터" : "무기"}
                       </small>
+                      {p.kind === "weapon" && <ArtIcon id={p.id} className="pull-weapon-icon" />}{p.kind === "character" && <Art id={p.id} label={`${itemName(p.id)} 획득 일러스트`} className="pull-illustration" />}
                       <h3>{itemName(p.id)}</h3>
                       <p>
                         {p.duplicate
@@ -288,6 +292,7 @@ export function Collection({
                 </label>
                 {current && (
                   <section className="collection-character-info">
+                    <Art id={current.id} label={`${current.name} 일러스트`} className="collection-illustration" />
                     <h3>
                       {current.name} · Lv.{current.level}/{current.levelCap} ·
                       해방 {current.liberation}/6
@@ -390,7 +395,7 @@ export function Collection({
                       {state.weapons.map((w) => (
                         <section key={w.id}>
                           <b>
-                            {WEAPONS[w.weaponId].name} · Lv.{w.level}/40
+                            <ArtIcon id={w.weaponId} />{WEAPONS[w.weaponId].name} · Lv.{w.level}/40
                           </b>
                           <p>
                             공격 +
@@ -469,7 +474,7 @@ export function Collection({
                       {state.weapons.map((w) => (
                         <section key={w.id}>
                           <b>
-                            {"★".repeat(WEAPONS[w.weaponId].rarity)}{" "}
+                            <ArtIcon id={w.weaponId} />{"★".repeat(WEAPONS[w.weaponId].rarity)}{" "}
                             {WEAPONS[w.weaponId].name} · Lv.{w.level}
                           </b>
                           <p>
@@ -504,7 +509,7 @@ export function Collection({
                     <section className="supply-shop" aria-label="전투 소모품 보급">
                       <h3>전투 소모품 보급</h3><p>조개로 보급합니다. 전투·협동 모집 중에는 구입할 수 없습니다.</p>
                       <div className="weapon-list">{Object.values(CONSUMABLES).map((item) => <section key={item.id}>
-                        <b>{item.name} · 보유 {quantity(item.id)}개</b><p>{item.description}</p><p>1개 조개 {item.price}</p>
+                        <b><ArtIcon id={item.id} />{item.name} · 보유 {quantity(item.id)}개</b><p>{item.description}</p><p>1개 조개 {item.price}</p>
                         {[1, 5].map((count) => <button key={count} disabled={busy || state.wallet.shell < item.price * count} onClick={() => send("supplies", { itemId: item.id, count })}>{item.name} {count}개 구입</button>)}
                       </section>)}</div>
                     </section>

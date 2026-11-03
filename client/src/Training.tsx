@@ -1,3 +1,5 @@
+import { ArtIcon } from "./ArtIcon";
+import { Art } from "./Art";
 import { useCallback, useEffect, useState } from "react";
 import { SKILLS, PASSIVES, ULTIMATES } from "../../shared/combat";
 import type { CharacterProgress } from "../../shared/progression";
@@ -134,15 +136,10 @@ export function Characters({ onClose }: { onClose: () => void }) {
         {character && (
           <>
             <section className="training-summary">
-              <div
-                className="character-art"
-                style={{ background: character.color }}
-              >
-                ✦
-              </div>
+              <Art id={character.id} label={`${character.name} 일러스트`} className="training-illustration" />
               <div>
                 <h3>
-                  {character.name} · {"★".repeat(character.rarity)} ·{" "}
+                  <ArtIcon id={character.element} />{character.name} · {"★".repeat(character.rarity)} ·{" "}
                   {character.element}
                 </h3>
                 <p data-testid="character-level">

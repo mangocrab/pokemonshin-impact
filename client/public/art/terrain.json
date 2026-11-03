@@ -1,0 +1,92 @@
+{
+  "frames": {
+    "water": {
+      "frame": {
+        "x": 8,
+        "y": 8,
+        "w": 527,
+        "h": 708
+      },
+      "rotated": false,
+      "trimmed": false,
+      "sourceSize": {
+        "w": 527,
+        "h": 708
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 527,
+        "h": 708
+      }
+    },
+    "sand": {
+      "frame": {
+        "x": 551,
+        "y": 8,
+        "w": 527,
+        "h": 708
+      },
+      "rotated": false,
+      "trimmed": false,
+      "sourceSize": {
+        "w": 527,
+        "h": 708
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 527,
+        "h": 708
+      }
+    },
+    "grass": {
+      "frame": {
+        "x": 1094,
+        "y": 8,
+        "w": 527,
+        "h": 708
+      },
+      "rotated": false,
+      "trimmed": false,
+      "sourceSize": {
+        "w": 527,
+        "h": 708
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 527,
+        "h": 708
+      }
+    },
+    "wood": {
+      "frame": {
+        "x": 1637,
+        "y": 8,
+        "w": 527,
+        "h": 708
+      },
+      "rotated": false,
+      "trimmed": false,
+      "sourceSize": {
+        "w": 527,
+        "h": 708
+      },
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 527,
+        "h": 708
+      }
+    }
+  },
+  "meta": {
+    "image": "terrain.webp",
+    "size": {
+      "w": 2172,
+      "h": 724
+    },
+    "scale": "1"
+  }
+}

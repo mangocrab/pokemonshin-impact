@@ -1,3 +1,4 @@
+import { Art } from "./Art";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NPCS, QUESTS, type DialogueView, type NpcId, type QuestView, type StoryView } from "../../shared/story";
 import { materialName } from "../../shared/economy";
@@ -84,6 +85,7 @@ export function Story({ inBattle, journalOpen, onCloseJournal, onOpenJournal, on
     {npc && <div className="modal story-overlay" role="dialog" aria-modal="true" aria-label={npc.talkLabel}><article className="story-panel">
       <div className="story-title"><div><small>{npc.title}</small><h2>{npc.name}</h2></div><button onClick={closeDialogue}>대화 마치기</button></div>
       {!dialogue && !error && <p>이야기를 듣는 중…</p>}
+      <Art set="world" id={npc.id} label={`${npc.name} 일러스트`} className="npc-illustration" />
       {dialogue?.lines.map((line, i) => <p className="npc-line" key={i}>{line}</p>)}
       {dialogue && story?.worldId === dialogue.worldId && story.quests.filter((q) => q.npcId === npc.id).map((q) => <section className="quest-card" key={q.id} aria-label={q.name}>
         <small>{stateNames[q.state]}</small><h3>{q.name}</h3><p>{q.description}</p>{q.requirementText && <p>선행 조건: {q.requirementText}</p>}<p>{q.objectiveText} · {q.progress}/{q.target}</p><Reward quest={q} />

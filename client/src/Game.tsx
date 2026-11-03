@@ -60,14 +60,17 @@ export function Game({
       chestSprites.get(SANCTUARY_CHEST.id)?.setVisible(ids.includes(SANCTUARY.id));
     }
     const findChest = (p: Position) => nearbyChest(p, opened) ?? nearSanctuaryChest(p, opened, regions);
+    const chestArt = new Map<string, Phaser.GameObjects.Image>();
     const chestSprites = new Map<string, Phaser.GameObjects.Container>();
     function refreshChests(ids: string[]) {
       window.dispatchEvent(new Event("world:loot"));
       opened = ids;
       setCount(ids.filter((id) => CHESTS.some((c) => c.id === id)).length);
       setSecretFound(ids.includes(SANCTUARY_CHEST.id));
-      for (const [id, sprite] of chestSprites)
-        sprite.setAlpha(ids.includes(id) ? 0.4 : 1);
+      for (const [id, sprite] of chestArt) {
+        const open = ids.includes(id);
+        sprite.setFrame(open ? "chest-open" : "chest").setDisplaySize(42, open ? 45 : 34);
+      }
     }
     async function openNearby(position: Position) {
       const chest = findChest(position);
@@ -140,106 +143,64 @@ export function Game({
       wasd!: Record<string, Phaser.Input.Keyboard.Key>;
       sent = 0;
       others = new Map<string, Phaser.GameObjects.Container>();
+      preload() {
+        this.load.atlas("world-art", "/art/world.webp", "/art/world.json");
+        this.load.atlas("terrain-art", "/art/terrain.webp", "/art/terrain.json");
+        this.load.on("loaderror", () => setMessage("아트를 불러오지 못했습니다. 새로고침해 주세요."));
+      }
       create() {
         this.presentation = new CoastPresentation(this);
         configure.current = () => this.presentation.configure(settingsRef.current, matchMedia("(prefers-reduced-motion: reduce)").matches);
         configure.current();
         for (const [x, y] of PALMS) {
-          this.presentation.shadow(this.add.ellipse(x + 14, y + 22, 110, 34, 0x264a43, 0.15)).setDepth(-1);
-          this.add
-            .rectangle(x, y - 38, 15, 95, 0x9d7651)
-            .setAngle(9)
-            .setDepth(y);
-          for (let i = 0; i < 6; i++) {
-            const leaf = this.add
-              .ellipse(
-                x + Math.cos(i) * 30,
-                y - 90 + Math.sin(i) * 14,
-                100,
-                23,
-                0x458d6c,
-              )
-              .setAngle(i * 60)
-              .setDepth(y + 1);
-            this.presentation.foliage(leaf, i * 60);
-          }
+          this.presentation.shadow(this.add.ellipse(x + 12, y + 7, 95, 30, 0x244a48, 0.13)).setDepth(-1);
+          const palm = this.add.image(x, y + 4, "world-art", "palm").setOrigin(0.31, 1).setDisplaySize(145, 164).setDepth(y);
+          this.presentation.foliage(palm, 0);
         }
-
-        this.presentation.shadow(this.add.ellipse(1070, 670, 220, 55, 0x264a43, 0.16)).setDepth(-1);
-        this.add.rectangle(1050, 620, 170, 110, 0xdbb582).setDepth(675);
-        this.add
-          .triangle(1050, 534, 0, 80, 100, 0, 200, 80, 0xbd7257)
-          .setDepth(676);
-        this.add.rectangle(1050, 638, 30, 73, 0x796b60).setDepth(677);
-        this.add.text(990, 690, "산호빛 쉼터", {
-          fontSize: "18px",
-          color: "#42645b",
-        });
+        this.presentation.shadow(this.add.ellipse(1050, 675, 200, 40, 0x244a48, 0.15)).setDepth(-1);
+        this.add.image(1050, 675, "world-art", "cottage").setOrigin(0.5, 1).setDisplaySize(208, 194).setDepth(675);
+        this.add.text(990, 695, "산호빛 쉼터", { fontSize: "14px", color: "#42645b", backgroundColor: "#fff7dfcc" });
         for (const chest of [...CHESTS, SANCTUARY_CHEST]) {
-          const sprite = this.add
-            .container(chest.x, chest.y, [
-              this.presentation.shadow(this.add.ellipse(0, 10, 38, 15, 0x244a48, 0.2)),
-              this.add.rectangle(0, 0, 32, 23, 0xa47746),
-              this.add.rectangle(0, -7, 34, 10, 0xe6c366),
-              this.add.rectangle(0, 0, 5, 14, 0xf7df93),
-            ])
-            .setDepth(chest.y);
+          const painted = this.add.image(0, 4, "world-art", "chest").setOrigin(0.5, 1).setDisplaySize(42, 34);
+          chestArt.set(chest.id, painted);
+          const sprite = this.add.container(chest.x, chest.y, [
+            this.presentation.shadow(this.add.ellipse(0, 5, 38, 12, 0x244a48, 0.17)), painted,
+          ]).setDepth(chest.y);
           chestSprites.set(chest.id, sprite);
           if (chest.id === SANCTUARY_CHEST.id) sprite.setVisible(false);
         }
-        this.presentation.shadow(this.add.ellipse(ENCOUNTER.x, ENCOUNTER.y + 8, 48, 18, 0x244a48, 0.2)).setDepth(-1);
-        this.add
-          .ellipse(ENCOUNTER.x, ENCOUNTER.y - 8, 38, 28, 0xc9775d)
-          .setDepth(ENCOUNTER.y);
-        this.add
-          .text(ENCOUNTER.x, ENCOUNTER.y - 54, "♋", {
-            fontSize: "40px",
-            color: "#a75d48",
-          })
-          .setOrigin(0.5)
-          .setDepth(ENCOUNTER.y + 1);
-        this.add
-          .text(ENCOUNTER.x, ENCOUNTER.y + 22, ENCOUNTER.name, {
-            fontSize: "12px",
-            color: "#704c3e",
-          })
-          .setOrigin(0.5);
+        this.presentation.shadow(this.add.ellipse(ENCOUNTER.x, ENCOUNTER.y + 6, 58, 20, 0x244a48, 0.18)).setDepth(-1);
+        this.add.image(ENCOUNTER.x, ENCOUNTER.y + 5, "world-art", "coral-crab").setOrigin(0.5, 1).setDisplaySize(76, 62).setDepth(ENCOUNTER.y);
+        this.add.text(ENCOUNTER.x, ENCOUNTER.y + 16, ENCOUNTER.name, { fontSize: "12px", color: "#704c3e", backgroundColor: "#fff7dfcc" }).setOrigin(0.5);
         const bloom = SANCTUARY_ENCOUNTER;
-        this.add.container(bloom.x, bloom.y, [
-          this.presentation.shadow(this.add.ellipse(0, 9, 46, 18, 0x244a48, 0.2)),
-          ...Array.from({ length: 6 }, (_, i) => this.add.ellipse(Math.cos(i * Math.PI / 3) * 15, -14 + Math.sin(i * Math.PI / 3) * 15, 22, 18, 0xe9b96e)),
-          this.add.circle(0, -14, 12, 0x6a9f70),
-          this.add.text(0, 25, bloom.name, { fontSize: "12px", color: "#365e46" }).setOrigin(0.5),
-        ]).setDepth(bloom.y);
+        this.presentation.shadow(this.add.ellipse(bloom.x, bloom.y + 6, 52, 18, 0x244a48, 0.17)).setDepth(-1);
+        this.add.image(bloom.x, bloom.y + 6, "world-art", "sanctuary-bloom").setOrigin(0.5, 1).setDisplaySize(70, 76).setDepth(bloom.y);
+        this.add.text(bloom.x, bloom.y + 22, bloom.name, { fontSize: "12px", color: "#365e46", backgroundColor: "#fff7dfcc" }).setOrigin(0.5);
         for (const npc of NPCS) {
           this.add.container(npc.x, npc.y, [
-            this.presentation.shadow(this.add.ellipse(3, 8, 30, 12, 0x244a48, 0.2)),
-            this.add.rectangle(0, -7, 21, 26, npc.color),
-            this.add.circle(0, -28, 10, 0xeec9a4),
-            this.add.ellipse(0, -37, 34, 9, 0xf5dfaa),
-            this.add.rectangle(5, -16, 7, 17, 0xf2bd83),
-            this.add.text(0, -62, `${npc.name} · ${npc.title}`, { fontSize: "12px", color: "#244a48", backgroundColor: "#fffef5dd" }).setOrigin(0.5),
+            this.presentation.shadow(this.add.ellipse(0, 6, 30, 11, 0x244a48, 0.18)),
+            this.add.image(0, 5, "world-art", npc.id).setOrigin(0.5, 1).setDisplaySize(49, 66),
+            this.add.text(0, -74, `${npc.name} · ${npc.title}`, { fontSize: "12px", color: "#244a48", backgroundColor: "#fffef5dd" }).setOrigin(0.5),
           ]).setDepth(npc.y);
         }
-        this.add.rectangle(TIDE_PUZZLE.x, TIDE_PUZZLE.y - 5, 50, 36, 0x8797a1).setDepth(TIDE_PUZZLE.y);
-        this.add.text(TIDE_PUZZLE.x, TIDE_PUZZLE.y - 45, "☀ ❧ ≈ ☾", { fontSize: "20px", color: "#526c76" }).setOrigin(0.5).setDepth(TIDE_PUZZLE.y + 1);
+        this.add.image(TIDE_PUZZLE.x, TIDE_PUZZLE.y + 10, "world-art", "altar").setOrigin(0.5, 1).setDisplaySize(84, 86).setDepth(TIDE_PUZZLE.y);
+        this.add.text(TIDE_PUZZLE.x, TIDE_PUZZLE.y - 91, "☀ ❧ ≈ ☾", { fontSize: "16px", color: "#526c76", backgroundColor: "#fff7dfcc" }).setOrigin(0.5).setDepth(TIDE_PUZZLE.y + 1);
         this.add.text(TIDE_PUZZLE.x, TIDE_PUZZLE.y + 22, TIDE_PUZZLE.name, { fontSize: "12px", color: "#365c59" }).setOrigin(0.5);
-        gate = this.add.container(1570, 800, [this.add.rectangle(0, 0, 10, 80, 0x947452), this.add.text(-20, -65, "잠긴 다리", { fontSize: "12px", color: "#5f6d53" })]).setDepth(900);
+        gate = this.add.container(1570, 800, [this.add.image(0, 0, "world-art", "lantern").setOrigin(0.5, 1).setDisplaySize(44, 82), this.add.text(-23, -100, "잠긴 다리", { fontSize: "12px", color: "#5f6d53" })]).setDepth(800);
         this.player = this.add.container(800, 560, [
-          this.presentation.shadow(this.add.ellipse(0, 9, 28, 12, 0x244a48, 0.25)),
-          this.add.circle(0, -12, 12, 0x3b6375),
-          this.add.rectangle(0, -2, 18, 20, 0xffffff),
-          this.add.circle(0, -24, 10, 0xf0c6a2),
-          this.add.ellipse(0, -31, 29, 10, 0xf4de9f),
+          this.presentation.shadow(this.add.ellipse(0, 7, 28, 11, 0x244a48, 0.2)),
+          this.add.image(0, 5, "world-art", "traveler").setOrigin(0.5, 1).setDisplaySize(45, 62),
         ]);
         this.cameras.main
           .setBounds(0, 0, WORLD.width, WORLD.height)
           .startFollow(this.player, true, 0.12, 0.12, 0, 100);
         this.keys = this.input.keyboard!.createCursorKeys();
         this.wasd = this.input.keyboard!.addKeys("W,A,S,D") as typeof this.wasd;
-        socket.on("world:position", (p: { x: number; y: number }) =>
-          this.player.setPosition(p.x, p.y),
-        );
+        socket.on("world:position", (p: { x: number; y: number }) => {
+          const body = this.player.getAt(1) as Phaser.GameObjects.Image;
+          if (Math.abs(p.x - this.player.x) > 0.2) body.setFlipX(p.x < this.player.x);
+          this.player.setPosition(p.x, p.y);
+        });
         socket.on(
           "world:players",
           (
@@ -258,11 +219,9 @@ export function Game({
               if (!sprite) {
                 sprite = this.add.container(p.position.x, p.position.y, [
                   this.presentation.shadow(this.add.ellipse(0, 9, 28, 12, 0x244a48, 0.25)),
-                  this.add.rectangle(0, -2, 18, 20, 0x6b96a0),
-                  this.add.circle(0, -24, 10, 0xf0c6a2),
-                  this.add.ellipse(0, -31, 29, 10, 0xe8ae89),
+                  this.add.image(0, 5, "world-art", "traveler").setOrigin(0.5, 1).setDisplaySize(45, 62).setTint(0xd8eeea),
                   this.add
-                    .text(0, -55, p.nickname, {
+                    .text(0, -70, p.nickname, {
                       fontSize: "12px",
                       color: "#244a48",
                       backgroundColor: "#fffef5",
@@ -359,6 +318,8 @@ export function Game({
           x = 0;
           y = 0;
         }
+        const body = this.player.getAt(1) as Phaser.GameObjects.Image;
+        body.y = 5 + (activeRef.current && this.presentation.motionEnabled && (x || y) ? Math.sin(t * 0.018) * 1.2 : 0);
         if (ready) socket.emit("world:move", { x, y });
       }
     }

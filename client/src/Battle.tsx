@@ -1,3 +1,5 @@
+import { ArtIcon } from "./ArtIcon";
+import { Art } from "./Art";
 import { CONSUMABLES, itemUnavailable } from "../../shared/items";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -221,16 +223,8 @@ export function Battle({
         </section>}
         <div className="battle-field">
           <div className="combatant">
-            <div
-              className="character-art"
-              style={{
-                background: CHARACTERS.find((c) => c.id === active.id)?.color,
-              }}
-              key={`ally-${battle.version}`}
-            >
-              ✦
-            </div>
-            <h3>{active.name}</h3>
+            <Art id={active.id} label={`${active.name} 일러스트`} className="battle-illustration" />
+            <h3><ArtIcon id={active.element} />{active.name}</h3>
             <div
               className="health-track"
               role="progressbar"
@@ -252,10 +246,8 @@ export function Battle({
           </div>
           <span className="versus">VS</span>
           <div className="combatant">
-            <div className="enemy-art" key={`enemy-${battle.version}`}>
-              {battle.enemy.id === SANCTUARY_ENCOUNTER.id ? "❀" : "♋"}
-            </div>
-            <h3>{battle.enemy.name}</h3>
+            <Art set="world" id={battle.enemy.id === SANCTUARY_ENCOUNTER.id ? "sanctuary-bloom" : "coral-crab"} label={`${battle.enemy.name} 일러스트`} className="battle-illustration enemy-illustration" />
+            <h3><ArtIcon id={battle.enemy.element} />{battle.enemy.name}</h3>
             <div
               className="health-track enemy-health"
               role="progressbar"
@@ -438,7 +430,7 @@ export function Battle({
               <div className="item-actions">{Object.values(CONSUMABLES).map((item) => <button key={item.id}
                 disabled={busy || coopLocked || replacement || restricted || !items || (items[item.id] ?? 0) < 1 || Boolean(itemUnavailable(active, item.id))}
                 onClick={() => act({ type: "item", itemId: item.id })}>
-                <b>{item.name} · {items ? items[item.id] ?? 0 : "…"}개</b><small>{item.description}</small>
+                <b><ArtIcon id={item.id} />{item.name} · {items ? items[item.id] ?? 0 : "…"}개</b><small>{item.description}</small>
                 <small>{itemUnavailable(active, item.id) || (items && !(items[item.id] ?? 0) ? "보유 수량이 없습니다." : "")}</small>
               </button>)}</div>
               <p>감전 등으로 행동하지 못하면 소비하지 않습니다. 협동전 선택 대기/이탈/취소도 효과가 실행되기 전에는 소비하지 않습니다.</p>

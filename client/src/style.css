@@ -1095,3 +1095,28 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline:3px so
 .enemy-intent strong, .enemy-intent small { display:block; }
 .enemy-intent p { margin:6px 0; font-size:12px; }
 .enemy-intent small { font-size:11px; }
+
+/* Painted atlas artwork: one cached sheet shared by menus and the battlefield. */
+.illustration { display:block; overflow:hidden; flex-shrink:0; }
+.battle-illustration { width:112px; height:142px; margin:auto; filter:drop-shadow(0 5px 3px #264f3b25); }
+.enemy-illustration { width:132px; }
+.training-illustration { width:122px; height:170px; }
+.collection-illustration { width:94px; height:120px; float:right; margin-left:16px; }
+.pull-illustration { width:100%; height:110px; }
+.npc-illustration { width:86px; height:114px; float:left; margin:10px 20px 16px 0; }
+.painted-banner { position:relative; overflow:hidden; isolation:isolate; padding-right:180px; background:radial-gradient(ellipse at 85% 45%,#e8d6c0 0%,transparent 50%),linear-gradient(120deg,#32495f,#76719b); }
+.banner-illustration { position:absolute; right:10px; bottom:0; width:180px; height:270px; z-index:-1; filter:drop-shadow(0 3px 4px #14233155); }
+.painted-banner .draw-buttons, .painted-banner > p { position:relative; z-index:1; }
+@media(max-width:760px) {
+  .battle-illustration { width:88px; height:112px; }
+  .enemy-illustration { width:100px; }
+  .training-illustration { width:84px; height:126px; }
+  .painted-banner { padding-right:95px; }
+  .banner-illustration { right:-14px; width:142px; height:225px; opacity:0.65; }
+  .collection-illustration { width:68px; height:94px; }
+}
+.art-icon { display:inline-block; width:22px; height:22px; vertical-align:middle; margin-right:5px; flex-shrink:0; }
+.pull-weapon-icon { display:block; width:84px; height:110px; margin:0 auto; }
+@media(max-width:760px) { .art-icon { width:18px; height:18px; margin-right:3px; } }
+.painted-banner, .painted-banner p, .painted-banner h2, .painted-banner h3 { color:#fff4df; }
+.painted-banner > small { color:#e5e4cf; }
