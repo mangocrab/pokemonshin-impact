@@ -1,6 +1,7 @@
 import { ArtIcon } from "./ArtIcon";
 import { Art } from "./Art";
 import { useBattlePresentation, ResultChips, BurstCutIn } from "./BattleFeedback";
+import { SkillEffects } from "./SkillEffects";
 import { CONSUMABLES, itemUnavailable } from "../../shared/items";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -226,8 +227,9 @@ export function Battle({
         <div className="battle-field" data-motion={presentation.motion} data-effects={presentation.effects}>
           {feedback?.burst && <BurstCutIn key={feedback.key} burst={feedback.burst} />}
           <div className="combatant">
-            <div key={`ally:${feedback?.key ?? "idle"}`} data-impact={feedback?.ally.some((c) => c.kind === "damage") || undefined}>
+            <div className="combatant-art" key={`ally:${feedback?.key ?? "idle"}`} data-impact={feedback?.ally.some((c) => c.kind === "damage") || undefined}>
               {feedback && <ResultChips chips={feedback.ally} />}
+              {feedback && <SkillEffects cues={feedback.skills} side="ally" />}
               <Art id={active.id} label={`${active.name} 일러스트`} className="battle-illustration" />
             </div>
             <h3><ArtIcon id={active.element} />{active.name}</h3>
@@ -252,8 +254,9 @@ export function Battle({
           </div>
           <span className="versus">VS</span>
           <div className="combatant">
-            <div key={`enemy:${feedback?.key ?? "idle"}`} data-impact={feedback?.enemy.some((c) => c.kind === "damage") || undefined}>
+            <div className="combatant-art" key={`enemy:${feedback?.key ?? "idle"}`} data-impact={feedback?.enemy.some((c) => c.kind === "damage") || undefined}>
               {feedback && <ResultChips chips={feedback.enemy} />}
+              {feedback && <SkillEffects cues={feedback.skills} side="enemy" />}
               <Art set="world" id={battle.enemy.id === SANCTUARY_ENCOUNTER.id ? "sanctuary-bloom" : "coral-crab"} label={`${battle.enemy.name} 일러스트`} className="battle-illustration enemy-illustration" />
             </div>
             <h3><ArtIcon id={battle.enemy.element} />{battle.enemy.name}</h3>

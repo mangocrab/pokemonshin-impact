@@ -135,6 +135,14 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
           exact: true,
         }),
       ).toBeVisible();
+    // Round-one attacks are visible from each player's own perspective, even with identical heroes.
+    for (let i = 0; i < pages.length; i++) {
+      const snapshot = (await (await pages[i].request.get("/api/battle")).json()).battle;
+      const cues = snapshot.skillCues.filter((c: { target: string }) => c.target === "enemy");
+      expect(cues).toHaveLength(2);
+      expect(cues.filter((c: { actor: string }) => c.actor === "ally")).toHaveLength(i === 0 || i === 3 ? 1 : 0);
+      expect(cues.every((c: { round: number }) => c.round === 1)).toBe(true);
+    }
     await expect(
       fight(host).getByRole("button", { name: /^물결 쏘기/ }),
     ).toBeDisabled();

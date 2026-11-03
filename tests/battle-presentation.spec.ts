@@ -32,11 +32,19 @@ test("server results drive battle effects without replay, blocking input or igno
     const enemyChip = field.locator(".combatant").nth(1).locator('[data-result="damage"]');
     await expect(enemyChip).toHaveText(`HP −${before.enemy.hp - after.enemy.hp}`);
     await expect(field).toHaveAttribute("data-motion", "true");
+    const water = field.locator('.skill-effect[data-skill="tide"]');
+    await expect(water).toHaveAttribute("data-kind", "attack"); await expect(water).toHaveAttribute("data-element", "물");
+    expect(after.skillCues?.find(c => c.skillId === "tide")).toMatchObject({ target: "enemy", hit: true });
+    expect(await water.evaluate(node => getComputedStyle(node).pointerEvents)).toBe("none");
+    expect(await water.evaluate(node => node.querySelector(".skill-caption")!.getBoundingClientRect().bottom
+      <= node.closest(".combatant-art")!.getBoundingClientRect().bottom)).toBe(true);
+    await field.screenshot({ path: testInfo.outputPath("resolved-water-skill.png") });
     await expect(field.locator(".result-chips")).toHaveCount(0, { timeout: 5000 });
+    await expect(field.locator(".skill-effects")).toHaveCount(0);
     await page.evaluate((snapshot) => window.dispatchEvent(new CustomEvent("battle:state", { detail: snapshot })), after);
-    await expect(field.locator(".result-chips")).toHaveCount(0);
+    await expect(field.locator(".result-chips")).toHaveCount(0); await expect(field.locator(".skill-effects")).toHaveCount(0);
     await page.reload(); await expect(fight).toBeVisible();
-    await expect(field.locator(".result-chips")).toHaveCount(0);
+    await expect(field.locator(".result-chips")).toHaveCount(0); await expect(field.locator(".skill-effects")).toHaveCount(0);
     await act(/^도주/); await fight.getByRole("button", { name: "탐험으로 돌아가기", exact: true }).click();
     await start();
     let current = await state();
@@ -66,6 +74,8 @@ test("server results drive battle effects without replay, blocking input or igno
     await expect(field).toHaveAttribute("data-motion", "false");
     await expect(field).toHaveAttribute("data-effects", "false");
     await expect(enemyChip).toBeVisible();
+    await expect(water.locator(".skill-aura")).toBeHidden();
+    await expect(water.locator(".skill-caption")).toBeVisible(); await expect(water.locator(".skill-caption")).toHaveCSS("animation-name", "none");
     await expect(field.locator(".result-chips").first()).toHaveCSS("animation-name", "none");
     await expect(fight.locator(".health-track i").first()).toHaveCSS("transition-duration", "0s");
     await act(/^도주/);

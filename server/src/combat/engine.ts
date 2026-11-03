@@ -267,6 +267,7 @@ export function resolveBattle(
   const state = normalizeBattle(previous),
     active = state.team[state.activeSlot];
   delete state.itemUses;
+  delete state.skillCues;
   validateBattleAction(state, action);
   state.version++;
   const log: string[] = [];
@@ -302,7 +303,7 @@ export function resolveRound(
   cooperative = false,
 ) {
   const log: string[] = [];
-  for (const p of players) delete p.state.itemUses;
+  for (const p of players) { delete p.state.itemUses; p.state.skillCues = []; }
   const root = players[0].state;
   const state = root;
   const enemySkill = enemySkillForRound(enemy.id, round).id;
@@ -456,6 +457,15 @@ export function resolveRound(
       const hit =
         skill.target === "self" ||
         rng() < skill.accuracy * (hasStatus(user, "accuracyDown") ? 0.8 : 1);
+      const visualTarget = skill.category === "heal" || skill.category === "shield" ? user : target;
+      for (const observer of players) {
+        const side = visualTarget === enemy ? "enemy" : observer.state.team.includes(visualTarget) ? "ally" : null;
+        if (!side) continue; // Another player's self effect cannot appear on this player's portrait.
+        const cues = observer.state.skillCues!;
+        cues.push({ round, actor: turn.side === "enemy" ? "enemy" : turn.player === observer ? "ally" : "visitor",
+          actorId: user.id, actorName: user.name, target: side, targetId: visualTarget.id,
+          skillId: skill.id, skillName: skill.name, element: skill.element, category: skill.category, hit });
+      }
       if (!hit) log.push(`${user.name}의 ${skill.name}이(가) 빗나갔습니다.`);
       else {
         if (skill.category === "attack") {

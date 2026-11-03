@@ -1,10 +1,11 @@
-import { STATUS_NAMES, ULTIMATES, type BattleState, type Element, type Fighter } from "./combat.js";
+import { STATUS_NAMES, ULTIMATES, type BattleState, type Element, type Fighter, type ResolvedSkillCue } from "./combat.js";
 
 export type ResultChip = { kind: "damage" | "heal" | "shield" | "status" | "switch"; text: string };
 export type BattleFeedback = {
   key: string;
   ally: ResultChip[];
   enemy: ResultChip[];
+  skills: ResolvedSkillCue[];
   burst?: { characterId: string; name: string; skillName: string; element: Element };
 };
 function fighterChanges(before: Fighter, after: Fighter): ResultChip[] {
@@ -29,7 +30,9 @@ export function battleFeedback(before: BattleState | null, after: BattleState | 
   // Energy is only spent by resolved ultimates. Selection/lobby updates cannot trigger a cut-in.
   const burst = after.round === before.round + 1 && ultimate?.energyCost && caster.energy >= ultimate.energyCost && nextCaster && nextCaster.energy < caster.energy
     ? { characterId: caster.id, name: caster.name, skillName: ultimate.name, element: ultimate.element } : undefined;
-  return ally.length || enemy.length || burst ? { key: `${after.id}:${after.version}`, ally, enemy, burst } : null;
+  const skills = after.round === before.round + 1 ? (after.skillCues ?? []).filter(c => c.round === before.round
+    && c.targetId === (c.target === "ally" ? current.id : after.enemy.id)) : [];
+  return ally.length || enemy.length || burst || skills.length ? { key: `${after.id}:${after.version}`, ally, enemy, skills, burst } : null;
 }
 
 export const TRAVELER_DIRECTIONS = ["south", "west", "east", "north"] as const;

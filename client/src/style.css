@@ -1272,3 +1272,32 @@ input, select { accent-color:#376caa; }
 @keyframes signature-stars { from { opacity:0; transform:translateY(8px); } 45% { opacity:.65; } to { opacity:.3; transform:translateY(-6px); } }
 @media (max-width:700px) { .burst-signature { width:210px; height:100%; right:-8px; opacity:.28; } .burst-copy { max-width:68%; } }
 @media (prefers-reduced-motion:reduce) { .battle-field .burst-signature g { animation:none !important; } }
+
+/* Authoritative skill attempts from the last resolved round; no damage totals inferred here. */
+.skill-effects { position:absolute; inset:0; z-index:1; pointer-events:none; display:flex; flex-direction:column; justify-content:flex-end; gap:3px; padding-bottom:4px; }
+.skill-effect { --skill:#8dd4e4; position:relative; display:flex; align-items:center; justify-content:center; gap:5px; color:var(--skill); min-height:32px; }
+.skill-effect[data-element="불"] { --skill:#f6b58a; }
+.skill-effect[data-element="바람"] { --skill:#a9e4ce; }
+.skill-effect[data-element="번개"] { --skill:#cbb5f4; }
+.skill-effect[data-element="얼음"] { --skill:#c0edf5; }
+.skill-effect[data-element="자연"] { --skill:#c2dda0; }
+.skill-caption { display:flex; flex-direction:column; gap:1px; padding:4px 7px; max-width:100%; border:1px solid #d8c598; border-radius:5px; background:#162d49ed; color:#fff5dc; text-align:center; line-height:1.25; }
+.skill-caption b { font-size:11px; font-weight:600; overflow-wrap:anywhere; }
+.skill-caption small { color:var(--skill); font-size:10px; }
+.skill-aura { position:absolute; width:80px; height:80px; bottom:28px; border:1px solid var(--skill); border-radius:50%; display:grid; place-items:center; background:radial-gradient(circle,#ffffff12,transparent 70%); opacity:.7; }
+.skill-aura .art-icon { width:38px; height:38px; }
+.skill-effect[data-kind="heal"] .skill-aura { border-radius:45% 45% 10% 10%; border-style:dotted; }
+.skill-effect[data-kind="shield"] .skill-aura { border-radius:40% 40% 48% 48%; border-width:2px; }
+.skill-effect[data-kind="status"] .skill-aura { border-style:dashed; }
+.skill-effect[data-kind="miss"] { --skill:#c2c9ce; }
+.skill-effect[data-kind="miss"] .skill-aura { display:none; }
+.battle-field[data-effects="false"] .skill-aura { display:none; }
+.battle-field[data-motion="true"][data-effects="true"] .skill-effect:not([data-kind="miss"]) .skill-aura { animation:skill-resolve .7s ease-out both; }
+.battle-field[data-motion="true"] .skill-caption { animation:skill-caption .35s ease-out both; }
+@keyframes skill-resolve { from { opacity:0; transform:scale(.55); } 35% { opacity:.8; } to { opacity:.35; transform:scale(1.12); } }
+@keyframes skill-caption { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@media (max-width:700px) { .skill-caption b { font-size:9px; } .skill-caption small { font-size:9px; } .skill-aura { width:58px; height:58px; bottom:25px; } .skill-aura .art-icon { width:28px; height:28px; } }
+@media (prefers-reduced-motion:reduce) { .battle-field .skill-aura,.battle-field .skill-caption { animation:none !important; } }
+.skill-overflow { align-self:center; padding:2px 5px; border-radius:4px; color:#fff5dc; background:#162d49ed; font-size:9px; text-align:center; }
+
+.combatant-art { position:relative; }

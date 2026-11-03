@@ -658,7 +658,22 @@ export type BattleAction =
   | { type: "wait" }
   | { type: "continue" };
 export type BattleStatus = "active" | "won" | "lost" | "fled" | "abandoned";
+/** Last resolved round's visual facts; hit means accuracy only, not status application. */
+export type ResolvedSkillCue = {
+  round: number;
+  actor: "ally" | "enemy" | "visitor";
+  actorId: string;
+  actorName: string;
+  target: "ally" | "enemy";
+  targetId: string;
+  skillId: string;
+  skillName: string;
+  element: Element;
+  category: Skill["category"];
+  hit: boolean;
+};
 export type BattleState = {
+  skillCues?: ResolvedSkillCue[];
   /** Transient resolution events, drained before persistence/publication. */
   itemUses?: string[];
   coop?: CoopView;
