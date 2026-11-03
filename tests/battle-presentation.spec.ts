@@ -45,13 +45,14 @@ test("server results drive battle effects without replay, blocking input or igno
     const ultimate = await act(/^궁극기/);
     const burst = field.locator(".burst-cut-in");
     await expect(burst).toContainText("바다가 품은 약속");
+    // Read transient presentation properties before a potentially slow software-rendered capture.
+    expect(await burst.evaluate((node) => getComputedStyle(node).pointerEvents)).toBe("none");
     expect(ultimate.team[0].energy).toBeLessThan(current.team[0].energy);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await expect(field).toHaveAttribute("data-motion", "false");
     await expect(burst).toHaveCSS("animation-name", "none");
     await field.screenshot({ path: testInfo.outputPath("celestial-ultimate.png") });
-    // Presentation never locks the next action or captures pointer input.
-    expect(await burst.evaluate((node) => getComputedStyle(node).pointerEvents)).toBe("none");
+    // Presentation never locks the next action, even after the cut-in expires.
     await act(/^도주/); await fight.getByRole("button", { name: "탐험으로 돌아가기", exact: true }).click();
     const prefs = await (await page.request.get("/api/settings")).json();
     const { revision, ...values } = prefs;

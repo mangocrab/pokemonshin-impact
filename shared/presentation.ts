@@ -32,16 +32,21 @@ export function battleFeedback(before: BattleState | null, after: BattleState | 
   return ally.length || enemy.length || burst ? { key: `${after.id}:${after.version}`, ally, enemy, burst } : null;
 }
 
-export type TravelerStep = { x: number; y: number; phase: number; movingUntil: number; facingLeft: boolean };
+export const TRAVELER_DIRECTIONS = ["south", "west", "east", "north"] as const;
+export type TravelerDirection = typeof TRAVELER_DIRECTIONS[number];
+export type TravelerFrame = `${TravelerDirection}-${0 | 1 | 2}`;
+export type TravelerStep = { x: number; y: number; phase: number; movingUntil: number; direction: TravelerDirection };
 export function travelerStep(previous: TravelerStep, position: { x: number; y: number }, time: number): TravelerStep {
   const dx = position.x - previous.x, dy = position.y - previous.y, distance = Math.hypot(dx, dy);
   // Teleports/world changes must not look like running across the intervening terrain.
   const walking = distance > 0.05 && distance < 32;
-  return { x: position.x, y: position.y, phase: walking ? previous.phase + distance * 0.24 : previous.phase,
+  const direction = !walking ? previous.direction : Math.abs(dx) > Math.abs(dy) ? dx < 0 ? "west" : "east" : dy < 0 ? "north" : "south";
+  return { x: position.x, y: position.y, phase: walking ? previous.phase + distance * 0.10 : previous.phase,
     movingUntil: walking ? time + 130 : distance >= 32 ? 0 : previous.movingUntil,
-    facingLeft: walking && Math.abs(dx) > 0.2 ? dx < 0 : previous.facingLeft };
+    direction };
 }
-export function travelerPose(step: TravelerStep, time: number, motion: boolean) {
-  const walking = motion && time < step.movingUntil;
-  return { y: 5 - (walking ? Math.abs(Math.sin(step.phase)) * 1.8 : 0), angle: walking ? Math.sin(step.phase) * 1.1 : 0, facingLeft: step.facingLeft };
+export function travelerFrame(step: TravelerStep, time: number, motion: boolean): TravelerFrame {
+  const stride = [0, 1, 0, 2] as const;
+  const frame = motion && time < step.movingUntil ? stride[Math.floor(step.phase / (Math.PI / 2)) % stride.length] : 0;
+  return `${step.direction}-${frame}`;
 }

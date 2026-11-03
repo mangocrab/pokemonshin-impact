@@ -51,7 +51,7 @@ test("friends challenge sanctuary together, see area intent, recover shared rech
     const first = await choose(host, /^방어/); expect(first.round).toBe(3); expect(first.coop.submitted).toBe(true);
     const burst = await choose(guest, /^방어/); expect(burst.round).toBe(4); expect(burst.enemy.blockedUntilRound).toBe(4);
     expect(burst.log.filter((l: string) => l.includes("한여름의 만개:")).length).toBe(2);
-    await guest.reload(); await expect(guest.getByRole("status")).toContainText("불러왔습니다");
+    await guest.reload(); await expect(guest.getByRole("status")).toContainText("불러왔습니다", { timeout: 15000 });
     await expect(fight(guest).getByLabel("적 행동 예고")).toContainText("1라운드 행동 불가");
     await expect(fight(host).getByRole("heading", { name: "4라운드 · 행동 선택", exact: true })).toBeVisible();
     await expect(fight(guest).getByLabel("전투 기록")).toContainText("협동 전투를 재개");

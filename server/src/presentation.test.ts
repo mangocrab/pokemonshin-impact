@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createBattle, resolveBattle } from "./combat/engine.js";
-import { battleFeedback, travelerStep, travelerPose } from "../../shared/presentation.js";
+import { battleFeedback, travelerStep, travelerFrame, TRAVELER_DIRECTIONS, type TravelerStep } from "../../shared/presentation.js";
 
 test("presentation ignores initial loads, other battles, duplicate and stale versions", () => {
   const a = createBattle("visual"), b = resolveBattle(a, { type: "skill", skillId: "tide" }, () => 0);
@@ -52,16 +52,30 @@ test("missed rounds never present accumulated changes as one round", () => {
   assert.equal(battleFeedback(a, c), null);
 });
 test("traveler motion follows accepted displacement, stops at walls and respects reduced motion and teleports", () => {
-  const idle = { x: 100, y: 100, phase: 0, movingUntil: 0, facingLeft: false };
+  const idle: TravelerStep = { x: 100, y: 100, phase: 0, movingUntil: 0, direction: "south" };
   const scenePosition = { x: 95, y: 100, scene: { unrelated: "must not be copied" } };
   const walk = travelerStep(idle, scenePosition, 1000);
-  assert.deepEqual(Object.keys(walk).sort(), ["facingLeft", "movingUntil", "phase", "x", "y"]);
-  assert.equal(walk.facingLeft, true);
-  assert.notEqual(travelerPose(walk, 1000, true).y, 5);
-  assert.deepEqual(travelerPose(walk, 1000, false), { y: 5, angle: 0, facingLeft: true });
+  assert.deepEqual(Object.keys(walk).sort(), ["direction", "movingUntil", "phase", "x", "y"]);
+  assert.equal(walk.direction, "west");
+  assert.equal(travelerFrame(walk, 1000, false), "west-0");
   const wall = travelerStep(walk, { x: 95, y: 100 }, 1200);
-  assert.equal(travelerPose(wall, 1200, true).y, 5);
-  assert.equal(travelerStep(walk, { x: 100, y: 100 }, 1100).facingLeft, false);
+  assert.equal(travelerFrame(wall, 1200, true), "west-0");
+  assert.equal(travelerStep(walk, { x: 100, y: 100 }, 1100).direction, "east");
   const teleport = travelerStep(walk, { x: 800, y: 560 }, 1100);
-  assert.equal(travelerPose(teleport, 1100, true).y, 5);
+  assert.equal(travelerFrame(teleport, 1100, true), "west-0");
+});
+test("four-direction strides choose distinct frames, preserve facing on stop and freeze on the idle pose", () => {
+  for (const [direction, dx, dy] of [["south", 0, 5], ["west", -5, 0], ["east", 5, 0], ["north", 0, -5]] as const) {
+    let step: TravelerStep = { x: 100, y: 100, phase: 0, movingUntil: 0, direction: "south" };
+    const frames = new Set<string>();
+    for (let i = 0; i < 30; i++) {
+      step = travelerStep(step, { x: step.x + dx, y: step.y + dy }, 1000 + i * 40);
+      frames.add(travelerFrame(step, 1000 + i * 40, true));
+      assert.equal(step.direction, direction);
+      assert.equal(travelerFrame(step, 1000 + i * 40, false), `${direction}-0`);
+    }
+    assert.deepEqual([...frames].sort(), [0, 1, 2].map((i) => `${direction}-${i}`));
+    assert.equal(travelerFrame(step, 3000, true), `${direction}-0`);
+  }
+  assert.equal(TRAVELER_DIRECTIONS.length, 4);
 });

@@ -11,6 +11,7 @@ SETS = {
     'world': (4, 3, ['palm', 'cottage', 'chest', 'chest-open', 'coral-crab', 'sanctuary-bloom', 'altar', 'lantern', 'daon', 'moru', 'serin', 'traveler']),
     'terrain': (4, 1, ['water', 'sand', 'grass', 'wood']),
     'key-visual': (1, 1, ['scene']),
+    'traveler': (3, 4, [f'{direction}-{step}' for direction in ['south', 'west', 'east', 'north'] for step in range(3)]),
 }
 manifest = {}
 for name, (cols, rows, ids) in SETS.items():
@@ -32,6 +33,7 @@ for name, (cols, rows, ids) in SETS.items():
     for i, key in enumerate(ids):
         x, y = round(i % cols * width / cols), row_cuts[i // cols]
         right, bottom = round((i % cols + 1) * width / cols), row_cuts[i // cols + 1]
+        cell_x, cell_y, cell_w, cell_h = x, y, right-x, bottom-y
         # The frame is atlas metadata; the original pixels are never cropped or rearranged.
         if im.mode == 'RGBA':
             bounds = im.getchannel('A').crop((x, y, right, bottom)).point(lambda a: 255 if a > 100 else 0).getbbox()
@@ -42,6 +44,10 @@ for name, (cols, rows, ids) in SETS.items():
             # Leave atlas boundaries out of the sampler to avoid neighboring-tile color bleed.
             x, y, right, bottom = x + 8, y + 8, right - 8, bottom - 8
         frames[key] = {'frame': {'x': x, 'y': y, 'w': right-x, 'h': bottom-y}, 'rotated': False, 'trimmed': False, 'sourceSize': {'w': right-x, 'h': bottom-y}, 'spriteSourceSize': {'x': 0, 'y': 0, 'w': right-x, 'h': bottom-y}}
+        if name == 'traveler':
+            # Keep one common cell/ground plane: trimming must not stretch a stride
+            # to the idle pose's dimensions or move the character's feet each frame.
+            frames[key].update(trimmed=True, sourceSize={'w': cell_w, 'h': cell_h}, spriteSourceSize={'x': x-cell_x, 'y': y-cell_y, 'w': right-x, 'h': bottom-y})
     atlas = {'frames': frames, 'meta': {'image': f'{name}.webp', 'size': {'w': width, 'h': height}, 'scale': '1'}}
     (OUT / f'{name}.json').write_text(json.dumps(atlas, ensure_ascii=False, indent=2) + '\n')
     manifest[name] = {'url': f'/art/{name}.webp', 'width': width, 'height': height, 'frames': {key: val['frame'] for key, val in frames.items()}}

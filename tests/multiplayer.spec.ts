@@ -66,9 +66,21 @@ test("two players become friends, accept invitation and return on owner logout",
     ).toHaveCount(0);
     await host.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(host.getByText("내 월드 · 2/4")).toBeVisible();
+    const observeFrames = (p: Page, attribute: string) => p.locator(".game").evaluate((el, name) => new Promise<string[]>((resolve) => {
+      const seen = new Set<string>(), read = () => seen.add(el.getAttribute(name) ?? "");
+      read();
+      const observer = new MutationObserver(read);
+      observer.observe(el, { attributes: true, attributeFilter: [name] });
+      setTimeout(() => { observer.disconnect(); resolve([...seen]); }, 900);
+    }), attribute);
+    // Polling can alias short idle/walk phases; observe every actual frame change instead.
+    const observed = Promise.all([observeFrames(guest, "data-traveler-frame"), observeFrames(host, "data-visitor-frames")]);
     await guest.keyboard.down("ArrowRight");
-    await guest.waitForTimeout(250);
+    const [ownFrames, visitorFrames] = await observed;
+    expect(ownFrames.some((f) => /east-[12]/.test(f)), JSON.stringify(ownFrames)).toBe(true);
+    expect(visitorFrames.some((f) => /east-[12]/.test(f)), JSON.stringify(visitorFrames)).toBe(true);
     await guest.keyboard.up("ArrowRight");
+    await expect(host.locator(".game")).toHaveAttribute("data-visitor-frames", '["east-0"]');
     await guest.screenshot({ path: testInfo.outputPath("visiting-world.png") });
     await host.getByRole("button", { name: "로그아웃", exact: true }).click();
     await expect(guest.getByRole("status")).toContainText("소유자가 떠나");

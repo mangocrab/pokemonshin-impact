@@ -1,7 +1,7 @@
 import { ART } from "./art-manifest";
 import Phaser from "phaser";
 import { graphicsOptions, type GameSettings } from "../../shared/settings";
-import { travelerStep, travelerPose, type TravelerStep } from "../../shared/presentation";
+import { travelerStep, travelerFrame, type TravelerStep } from "../../shared/presentation";
 /** Painted diffuse atlas with an independent geometric normal map, matching authoritative terrain. */
 function paintedTiles(scene: Phaser.Scene) {
   const source = scene.textures.get("terrain-art").getSourceImage() as HTMLImageElement;
@@ -80,8 +80,9 @@ export class CoastPresentation {
   }
   get motionEnabled() { return this.options.motion; }
   traveler(sprite: Phaser.GameObjects.Container) {
-    this.travelers.set(sprite, { x: sprite.x, y: sprite.y, phase: 0, movingUntil: 0, facingLeft: false });
-    sprite.once("destroy", () => this.travelers.delete(sprite));
+    const registered = this.travelers.has(sprite);
+    this.travelers.set(sprite, { x: sprite.x, y: sprite.y, phase: 0, movingUntil: 0, direction: "south" });
+    if (!registered) sprite.once("destroy", () => this.travelers.delete(sprite));
   }
   shadow<T extends Phaser.GameObjects.Shape>(sprite: T): T {
     this.shadows.add(sprite); sprite.setVisible(this.options.shadows);
@@ -116,9 +117,8 @@ export class CoastPresentation {
     for (const [sprite, old] of this.travelers) {
       const step = travelerStep(old, sprite, time);
       this.travelers.set(sprite, active ? step : { ...step, movingUntil: 0 });
-      const pose = travelerPose(step, time, active && this.options.motion);
       const body = sprite.getAt(1) as Phaser.GameObjects.Image;
-      body.setY(pose.y).setAngle(pose.angle).setFlipX(pose.facingLeft);
+      body.setFrame(travelerFrame(step, time, active && this.options.motion)).setY(5).setAngle(0).setFlipX(false);
     }
     if (!active || !this.options.motion || time - this.last < (this.quality === "low" ? 100 : 33)) return;
     this.last = time; this.drawWaves(time);

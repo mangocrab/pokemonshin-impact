@@ -4,9 +4,23 @@ import { readFileSync, statSync } from "node:fs";
 import { ART } from "../../client/src/art-manifest.js";
 import { CHARACTERS, ENCOUNTERS } from "../../shared/combat.js";
 import { NPCS } from "../../shared/story.js";
+import { TRAVELER_DIRECTIONS } from "../../shared/presentation.js";
 test("shipping art atlases cover the live roster/world, stay inside their sheets and respect the 2 MiB download budget", () => {
   for (const c of CHARACTERS) assert.ok(c.id in ART.heroes.frames, c.id);
   for (const n of [...NPCS, ...ENCOUNTERS]) assert.ok(n.id in ART.world.frames, n.id);
+  const traveler = JSON.parse(readFileSync("client/public/art/traveler.json", "utf8"));
+  const cells = new Set<string>();
+  for (const direction of TRAVELER_DIRECTIONS) for (const step of [0, 1, 2]) {
+    const id = `${direction}-${step}`, f = traveler.frames[id];
+    assert.ok(id in ART.traveler.frames, id);
+    assert.equal(f.trimmed, true);
+    assert.equal(f.sourceSize.w, ART.traveler.width / 3);
+    assert.equal(f.sourceSize.h, ART.traveler.height / 4);
+    assert.ok(f.spriteSourceSize.x >= 0 && f.spriteSourceSize.y >= 0);
+    assert.ok(f.spriteSourceSize.x + f.frame.w <= f.sourceSize.w && f.spriteSourceSize.y + f.frame.h <= f.sourceSize.h);
+    cells.add(JSON.stringify(f.frame));
+  }
+  assert.equal(cells.size, 12);
   for (const [upper, lower] of [["coral-crab", "daon"], ["sanctuary-bloom", "moru"], ["altar", "serin"], ["lantern", "traveler"]] as const) {
     const a = ART.world.frames[upper], b = ART.world.frames[lower];
     assert.ok(a.y + a.h < b.y, `${upper}/${lower} need a transparent row gutter`);

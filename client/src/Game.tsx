@@ -146,6 +146,7 @@ export function Game({
       preload() {
         this.load.atlas("world-art", "/art/world.webp", "/art/world.json");
         this.load.atlas("terrain-art", "/art/terrain.webp", "/art/terrain.json");
+        this.load.atlas("traveler-art", "/art/traveler.webp", "/art/traveler.json");
         this.load.on("loaderror", () => setMessage("아트를 불러오지 못했습니다. 새로고침해 주세요."));
       }
       create() {
@@ -189,7 +190,7 @@ export function Game({
         gate = this.add.container(1570, 800, [this.add.image(0, 0, "world-art", "lantern").setOrigin(0.5, 1).setDisplaySize(44, 82), this.add.text(-23, -100, "잠긴 다리", { fontSize: "12px", color: "#5f6d53" })]).setDepth(800);
         this.player = this.add.container(800, 560, [
           this.presentation.shadow(this.add.ellipse(0, 7, 28, 11, 0x244a48, 0.2)),
-          this.add.image(0, 5, "world-art", "traveler").setOrigin(0.5, 1).setDisplaySize(45, 62),
+          this.add.image(0, 5, "traveler-art", "south-0").setOrigin(0.5, 1).setDisplaySize(72, 72),
         ]);
         this.presentation.traveler(this.player);
         this.cameras.main
@@ -218,7 +219,7 @@ export function Game({
               if (!sprite) {
                 sprite = this.add.container(p.position.x, p.position.y, [
                   this.presentation.shadow(this.add.ellipse(0, 9, 28, 12, 0x244a48, 0.25)),
-                  this.add.image(0, 5, "world-art", "traveler").setOrigin(0.5, 1).setDisplaySize(45, 62).setTint(0xd8eeea),
+                  this.add.image(0, 5, "traveler-art", "south-0").setOrigin(0.5, 1).setDisplaySize(72, 72).setTint(0xd8eeea),
                   this.add
                     .text(0, -70, p.nickname, {
                       fontSize: "12px",
@@ -259,6 +260,7 @@ export function Game({
             ready = true;
             onConnection(true);
             this.player.setPosition(position.x, position.y);
+            this.presentation.traveler(this.player);
             refreshChests(ids);
             window.dispatchEvent(new Event("story:world"));
             setMessage(notice ?? "위치와 탐험 상태를 불러왔습니다.");
@@ -282,6 +284,13 @@ export function Game({
       }
       update(t: number) {
         this.presentation.update(t, activeRef.current);
+        // Renderer diagnostics: report the selected texture frames without exposing game state or controls.
+        if (host.current) {
+          const frame = String((this.player.getAt(1) as Phaser.GameObjects.Image).frame.name);
+          const visitors = JSON.stringify([...this.others.values()].map((sprite) => String((sprite.getAt(1) as Phaser.GameObjects.Image).frame.name)));
+          if (host.current.dataset.travelerFrame !== frame) host.current.dataset.travelerFrame = frame;
+          if (host.current.dataset.visitorFrames !== visitors) host.current.dataset.visitorFrames = visitors;
+        }
         this.player.setDepth(this.player.y);
         if (t - this.sent < 50) return;
         this.sent = t;
