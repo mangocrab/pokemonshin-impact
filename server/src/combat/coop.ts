@@ -12,6 +12,9 @@ import {
   getActor,
   onlineActors,
   setCombatDeparture,
+  setCombatSuspender,
+  switchWorld,
+  type Actor,
   WorldError,
 } from "../exploration.js";
 import { roster, grantExperience } from "../training.js";
@@ -26,6 +29,9 @@ import {
   coopView,
   autoChoices,
   livingMembers,
+  coopPaused,
+  nextCoopDeadline,
+  COOP_RECONNECT_MS,
 } from "../../../shared/coop.js";
 import {
   createBattle,
@@ -74,6 +80,7 @@ async function save(
   resolvedRound?: { round: number; actions: unknown; itemUses?: { userId: string; itemId: string }[] },
   selection?: { userId: string; itemId: string },
 ) {
+  if (s.status !== "active" && s.status !== "lobby") for (const m of s.members) delete m.reconnectUntil;
   await db.$transaction(
     async (tx) => {
       if (selection) await requireConsumable(tx, selection.userId, selection.itemId);
@@ -103,7 +110,7 @@ async function save(
         data: {
           version: s.version + 1,
           status: s.status,
-          deadline: new Date(s.deadline),
+          deadline: new Date(nextCoopDeadline(s)),
           state: json({ ...s, version: s.version + 1 }),
         },
       });
@@ -139,7 +146,7 @@ async function save(
 function startReady(s: CoopState) {
   const members = s.members.filter((m) => !m.left);
   if (members.length < 2) return false;
-  if (!members.every((m) => m.ready)) return false;
+  if (!members.every((m) => m.ready) || coopPaused(s)) return false;
   s.status = "active";
   s.enemy.maxHp = s.enemy.hp = Math.round(
     220 * (1 + 0.8 * (members.length - 1)),
@@ -156,6 +163,7 @@ function startReady(s: CoopState) {
   return true;
 }
 export function resolveIfReady(s: CoopState, random = rng) {
+  if (coopPaused(s)) return undefined;
   autoChoices(s);
   const members = livingMembers(s);
   if (!members.length) {
@@ -198,8 +206,11 @@ export async function withdrawCoop(userId: string) {
   const s = await activeCoop(userId);
   if (!s) return;
   const m = s.members.find((m) => m.userId === userId)!;
+  const wasPaused = coopPaused(s);
   m.left = true;
   m.choice = null;
+  delete m.reconnectUntil;
+  if (wasPaused && !coopPaused(s)) s.deadline = Date.now() + 60000;
   let resolved;
   if (s.ownerId === userId) {
     s.status = "abandoned";
@@ -218,26 +229,64 @@ export async function withdrawCoop(userId: string) {
   }
   await save(s, resolved);
 }
-export async function recoverCoop() {
-  const rows = await db.coopBattle.findMany({
-    where: { status: { in: ["lobby", "active"] } },
-  });
-  await db.$transaction(async (tx) => {
-    for (const row of rows) {
-      const s = row.state as unknown as CoopState;
-      s.status = "abandoned";
-      s.version++;
-      s.log = ["서버 재시작으로 협동 전투가 안전하게 종료되었습니다."];
-      await tx.coopBattle.update({
-        where: { id: row.id },
-        data: { status: "abandoned", version: s.version, state: json(s) },
-      });
+export async function suspendCoop(actor: Actor) {
+  const s = await activeCoop(actor.userId);
+  if (!s || !["lobby", "active"].includes(s.status)) return false;
+  const until = Date.now() + COOP_RECONNECT_MS;
+  for (const m of s.members) if (!m.left && (m.userId === actor.userId || actor.userId === s.ownerId)) m.reconnectUntil ??= until;
+  s.log = ["연결 복구를 기다리며 협동 전투를 일시정지했습니다. 선택한 행동은 보존됩니다."];
+  await save(s);
+  return true;
+}
+async function resumeMember(s: CoopState, actor: Actor, announce: boolean) {
+  const member = s.members.find((m) => m.userId === actor.userId && !m.left);
+  if (!member) throw new WorldError(403, "복귀할 수 없는 참가자입니다.");
+  if (member.reconnectUntil === undefined && actor.worldId === s.worldId) return;
+  if (member.reconnectUntil !== undefined && member.reconnectUntil <= Date.now()) throw new WorldError(409, "전투 복귀 시간이 지났습니다.");
+  const world = await db.world.findUnique({ where: { id: s.worldId }, select: { ownerId: true, access: true } });
+  if (!world || world.ownerId !== s.ownerId || world.access === "blocked") throw new WorldError(403, "복귀할 수 없는 월드입니다.");
+  if (actor.userId !== s.ownerId) {
+    const owner = await getActor(s.ownerId);
+    if (!owner?.sockets.size || owner.worldId !== s.worldId || s.members.find((m) => m.userId === s.ownerId)?.reconnectUntil)
+      throw new WorldError(409, "소유자의 월드 재접속을 기다리세요.");
+    if (actor.worldId !== s.worldId) {
+      if ((await onlineActors()).filter((a) => a.worldId === s.worldId).length >= 4) throw new WorldError(409, "월드가 가득 찼습니다.");
+      await switchWorld(actor, s.worldId, "저장된 협동 전투에 복귀했습니다.", { preserveBattle: true, announce });
     }
-    await tx.coopMember.updateMany({
-      where: { activeUserId: { not: null } },
-      data: { activeUserId: null },
-    });
-  });
+  } else if (actor.worldId !== actor.homeWorldId || s.worldId !== actor.homeWorldId) throw new WorldError(403, "소유자의 개인 월드에서 복귀하세요.");
+  const wasPaused = coopPaused(s);
+  delete member.reconnectUntil;
+  let resolved;
+  if (wasPaused && !coopPaused(s)) {
+    s.deadline = Date.now() + 60000;
+    if (s.status === "lobby") startReady(s);
+    else resolved = resolveIfReady(s);
+  }
+  await save(s, resolved);
+}
+export async function restoreCoop(actor: Actor) {
+  const s = await activeCoop(actor.userId);
+  if (!s) return;
+  actor.battleId = s.id;
+  const m = s.members.find((m) => m.userId === actor.userId);
+  if (!m?.reconnectUntil) return;
+  if (m.reconnectUntil <= Date.now()) { await expireCoop(s.id); return; }
+  try { await resumeMember(s, actor, false); }
+  catch (e) { if (!(e instanceof WorldError) || e.status !== 409) throw e; }
+}
+export async function recoverCoop() {
+  const rows = await db.coopBattle.findMany({ where: { status: { in: ["lobby", "active"] } } });
+  for (const row of rows) {
+    const s = row.state as unknown as CoopState;
+    s.version = row.version;
+    for (const m of s.members) {
+      m.state = normalizeBattle(m.state); delete m.state.itemUses;
+      if (!m.left) m.reconnectUntil = Date.now() + COOP_RECONNECT_MS;
+    }
+    s.log = ["서버가 재시작되었습니다. 30초 안에 재접속하여 저장된 협동 전투에 복귀하세요."];
+    await save(s);
+  }
+  await db.coopMember.updateMany({ where: { activeUserId: { not: null }, battle: { status: { notIn: ["lobby", "active"] } } }, data: { activeUserId: null } });
   recovered = true;
 }
 export async function expireCoop(id: string, now = Date.now()) {
@@ -249,6 +298,12 @@ export async function expireCoop(id: string, now = Date.now()) {
   )
     return;
   const s = record.state as unknown as CoopState;
+  if (coopPaused(s)) {
+    const expired = s.members.filter((m) => !m.left && m.reconnectUntil !== undefined && m.reconnectUntil <= now);
+    if (expired.some((m) => m.userId === s.ownerId)) await withdrawCoop(s.ownerId);
+    else for (const m of expired) await withdrawCoop(m.userId);
+    return;
+  }
   if (s.status === "lobby") {
     s.status = "abandoned";
     s.log = ["참여 확인 시간이 만료되었습니다."];
@@ -278,6 +333,7 @@ export async function expireCoop(id: string, now = Date.now()) {
 export function registerCoop(io: Server) {
   channel = io;
   setCombatDeparture(withdrawCoop);
+  setCombatSuspender(suspendCoop);
   const timer = setInterval(() => {
     if (!recovered) return;
     void serial(async () => {
@@ -394,7 +450,7 @@ export function registerCoop(io: Server) {
               id,
               ownerId: u.id,
               worldId: actor.worldId,
-              deadline: new Date(s.deadline),
+              deadline: new Date(nextCoopDeadline(s)),
               state: json(s),
               members: {
                 create: candidates.map((a) => ({
@@ -418,6 +474,12 @@ export function registerCoop(io: Server) {
           const row = await db.coopBattle.findUniqueOrThrow({ where: { id } });
           return coopView(row.state as unknown as CoopState, u.id);
         }
+        if (req.params.operation === "resume") {
+          await resumeMember(s, actor, true);
+          return coopView(s, u.id);
+        }
+        if (coopPaused(s)) throw new WorldError(409, "참가자의 전투 복귀를 기다리는 중입니다.");
+        if (actor.worldId !== s.worldId) throw new WorldError(403, "전투가 진행 중인 월드에서 행동하세요.");
         if (req.params.operation === "ready") {
           if (s.status !== "lobby" || member.ready)
             throw new WorldError(409, "이미 처리된 참여 확인입니다.");

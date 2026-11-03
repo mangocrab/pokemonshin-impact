@@ -11,6 +11,7 @@ export type CoopMemberState = {
   left: boolean;
   state: BattleState;
   choice: BattleAction | null;
+  reconnectUntil?: number;
 };
 export type CoopState = {
   id: string;
@@ -31,6 +32,10 @@ export type CoopView = {
   submitted: boolean;
   spectating: boolean;
   deadline: number;
+  paused: boolean;
+  resumeRequired: boolean;
+  reconnectUntil?: number;
+  ownerAvailable: boolean;
   party: {
     userId: string;
     nickname: string;
@@ -40,6 +45,7 @@ export type CoopView = {
     ready: boolean;
     submitted: boolean;
     left: boolean;
+    reconnectUntil?: number;
   }[];
 };
 export function coopView(state: CoopState, userId: string): BattleState {
@@ -52,13 +58,7 @@ export function coopView(state: CoopState, userId: string): BattleState {
     round: state.round,
     enemy: state.enemy,
     log: state.log,
-    status: member.left
-      ? "fled"
-      : state.status === "lobby" || state.status === "active"
-        ? "active"
-        : state.status === "abandoned"
-          ? "abandoned"
-          : state.status,
+    status: state.status === "abandoned" ? "abandoned" : member.left ? "fled" : state.status === "lobby" || state.status === "active" ? "active" : state.status,
     phase:
       state.status !== "active" && state.status !== "lobby"
         ? "ended"
@@ -70,6 +70,10 @@ export function coopView(state: CoopState, userId: string): BattleState {
       submitted: member.choice !== null,
       spectating: member.state.team.every((f) => f.hp <= 0),
       deadline: state.deadline,
+      paused: coopPaused(state),
+      resumeRequired: Boolean(member.reconnectUntil),
+      reconnectUntil: coopPaused(state) ? nextCoopDeadline(state) : undefined,
+      ownerAvailable: !state.members.find((m) => m.userId === state.ownerId)?.reconnectUntil,
       party: state.members.map((m) => ({
         userId: m.userId,
         nickname: m.nickname,
@@ -79,6 +83,7 @@ export function coopView(state: CoopState, userId: string): BattleState {
         ready: m.ready,
         submitted: m.choice !== null,
         left: m.left,
+        reconnectUntil: m.reconnectUntil,
       })),
     },
   };
@@ -96,4 +101,12 @@ export function autoChoices(s: CoopState) {
       blockedReason(m.state.team[m.state.activeSlot], s.round)
     )
       m.choice = { type: "wait" };
+}
+
+export const COOP_RECONNECT_MS = 30000;
+export function coopPaused(s: CoopState) {
+  return (s.status === "active" || s.status === "lobby") && s.members.some((m) => !m.left && m.reconnectUntil !== undefined);
+}
+export function nextCoopDeadline(s: CoopState) {
+  return coopPaused(s) ? Math.min(...s.members.filter((m) => !m.left && m.reconnectUntil !== undefined).map((m) => m.reconnectUntil!)) : s.deadline;
 }

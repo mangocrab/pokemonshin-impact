@@ -1,7 +1,7 @@
 import { requireConsumable, consumeItems } from "./items.js";
 import { ensureEconomy } from "../economy-store.js";
 import { recordWorldVictory } from "../story-store.js";
-import { activeCoop, currentCoopView } from "./coop.js";
+import { activeCoop, currentCoopView, restoreCoop } from "./coop.js";
 import { roster, awardVictory, setTrainingNotifier } from "../training.js";
 import { Router } from "express";
 import { randomInt, randomUUID } from "node:crypto";
@@ -46,7 +46,8 @@ export function registerCombat(io: Server) {
     const battle = await db.battle.findUnique({
       where: { activeUserId: actor.userId },
     });
-    actor.battleId = battle?.id ?? (await activeCoop(actor.userId))?.id;
+    actor.battleId = battle?.id;
+    if (!battle) await restoreCoop(actor);
   });
   const router = Router();
   router.use(async (req, res, next) => {

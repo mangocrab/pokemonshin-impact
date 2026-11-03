@@ -267,6 +267,7 @@ test(
         await db.coopMember.findUnique({ where: { activeUserId: c.id } }),
         null,
       );
+      await command(b, "leave", { battleId: id });
       b.socket.disconnect();
       await eventually(
         async () =>
@@ -343,7 +344,7 @@ test(
           .progress,
         {},
       );
-      // Start another lobby, decline one invite, then a host's last socket cancels and safely returns guests.
+      // Explicit host cancellation followed by disconnect still returns guests immediately.
       const second = await command(host, "start", {
         encounterId: "coral-crab",
       });
@@ -359,6 +360,7 @@ test(
       await eventually(async () => (await state(id2)).round === 2);
       assert.equal(await db.coopRound.count({ where: { battleId: id2 } }), 1);
       assert.equal((await state(id2)).enemy.hp, (await state(id2)).enemy.maxHp);
+      await command(host, "leave", { battleId: id2 });
       host.socket.disconnect();
       await eventually(async () => (await state(id2)).status === "abandoned");
       await eventually(() => a.world === a.worldId && c.world === c.worldId);

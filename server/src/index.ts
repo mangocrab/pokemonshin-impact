@@ -2,7 +2,7 @@ import { adventureRouter } from "./adventure.js";
 import { registerStory } from "./story.js";
 import { settingsRouter } from "./settings.js";
 import { economyRouter } from "./economy.js";
-import { registerCoop, recoverCoop } from "./combat/coop.js";
+import { registerCoop, recoverCoop, withdrawCoop } from "./combat/coop.js";
 import express from "express";
 import { trainingRouter } from "./training.js";
 import { registerCombat } from "./combat/service.js";
@@ -148,10 +148,15 @@ app.get("/api/me", async (req, res) => {
 app.post("/api/logout", async (req, res) => {
   const raw = readCookie(req.headers.cookie);
   if (raw) {
+    const user = await userFromCookie(req.headers.cookie);
+    const otherSessionPresent = user && [...io.sockets.sockets.values()].some((s) => s.data.userId === user.id && readCookie(s.request.headers.cookie) !== raw);
+    if (user && !otherSessionPresent) await serial(() => withdrawCoop(user.id));
     await db.session.deleteMany({ where: { id: sessionId(raw) } });
     for (const socket of io.sockets.sockets.values()) {
-      if (readCookie(socket.request.headers.cookie) === raw)
+      if (readCookie(socket.request.headers.cookie) === raw) {
+        socket.data.explicitLogout = true;
         socket.disconnect(true);
+      }
     }
   }
   res.clearCookie("solara", { path: "/" });

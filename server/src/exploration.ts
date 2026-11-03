@@ -31,6 +31,8 @@ let leaveCombat: (userId: string) => Promise<void> = async () => {};
 export function setCombatDeparture(fn: typeof leaveCombat) {
   leaveCombat = fn;
 }
+let suspendCombat: (actor: Actor) => Promise<boolean> = async () => false;
+export function setCombatSuspender(fn: typeof suspendCombat) { suspendCombat = fn; }
 let restoreBattle: (actor: Actor) => Promise<void> = async () => {};
 export function setBattleRestorer(fn: typeof restoreBattle) {
   restoreBattle = fn;
@@ -180,7 +182,7 @@ export function registerExploration(io: Server) {
     // Install the listener before waiting for I/O, so early disconnects cannot leak actors.
     socket.on("disconnect", () => {
       if (actor)
-        void serial(() => release(actor!, socket.id, socket.data.userId)).catch(
+        void serial(() => release(actor!, socket.id, socket.data.userId, Boolean(socket.data.explicitLogout))).catch(
           console.error,
         );
     });
@@ -275,12 +277,13 @@ export function registerExploration(io: Server) {
     );
   };
 }
-async function release(actor: Actor, socketId: string, userId: string) {
+async function release(actor: Actor, socketId: string, userId: string, explicit = false) {
   actor.sockets.delete(socketId);
   if (actor.sockets.size) return;
   const oldWorld = actor.worldId;
-  await leaveCombat(userId);
-  await returnVisitors(actor.homeWorldId);
+  const preserving = !explicit && await suspendCombat(actor);
+  if (!preserving) await leaveCombat(userId);
+  await returnVisitors(actor.homeWorldId, preserving);
   await save(actor);
   if (!actor.sockets.size) actors.delete(userId);
   await broadcastPlayers(oldWorld);
@@ -303,26 +306,28 @@ export async function broadcastPlayers(worldId: string) {
 export function notifySocial() {
   channel.emit("social:changed");
 }
-async function returnVisitors(worldId: string) {
+async function returnVisitors(worldId: string, preserveBattle = false) {
   for (const visitor of (await onlineActors()).filter(
     (a) => a.worldId === worldId && a.homeWorldId !== worldId,
   ))
     await switchWorld(
       visitor,
       visitor.homeWorldId,
-      "월드 소유자가 떠나 개인 월드로 돌아왔습니다.",
+      preserveBattle ? "소유자 연결이 끊겨 개인 월드로 복귀했습니다. 협동 전투는 잠시 보존됩니다." : "월드 소유자가 떠나 개인 월드로 돌아왔습니다.",
+      { preserveBattle },
     );
 }
 export async function switchWorld(
   actor: Actor,
   worldId: string,
   message = "월드를 이동했습니다.",
+  options: { preserveBattle?: boolean; announce?: boolean } = {},
 ) {
   const opened = await openedChests(worldId);
   const regions = (await db.worldRegion.findMany({ where: { worldId } })).map((r) => r.regionId);
   const oldWorld = actor.worldId;
-  if (actor.battleId && worldId !== oldWorld) await leaveCombat(actor.userId);
-  if (actor.battleId && worldId !== oldWorld)
+  if (!options.preserveBattle && actor.battleId && worldId !== oldWorld) await leaveCombat(actor.userId);
+  if (!options.preserveBattle && actor.battleId && worldId !== oldWorld)
     throw new WorldError(409, "전투를 마친 후 월드를 이동하세요.");
   if (oldWorld === actor.homeWorldId && worldId !== oldWorld)
     await returnVisitors(oldWorld);
@@ -340,7 +345,7 @@ export async function switchWorld(
     const socket = channel.sockets.sockets.get(id);
     if (socket) {
       await socket.join(`world:${worldId}`);
-      socket.emit("world:ready", {
+      if (options.announce !== false) socket.emit("world:ready", {
         position: actor.position,
         world: WORLD,
         regions: actor.regions,
@@ -352,9 +357,11 @@ export async function switchWorld(
       });
     }
   }
-  await broadcastPlayers(oldWorld);
-  await broadcastPlayers(worldId);
-  notifySocial();
+  if (options.announce !== false) {
+    await broadcastPlayers(oldWorld);
+    await broadcastPlayers(worldId);
+    notifySocial();
+  }
 }
 export async function enterWorld(userId: string, hostId: string) {
   const visitor = await getActor(userId),
@@ -382,7 +389,8 @@ export async function enterWorld(userId: string, hostId: string) {
 }
 export async function blockVisitors(worldId: string) {
   const owner = (await onlineActors()).find((a) => a.homeWorldId === worldId);
-  if (owner) await leaveCombat(owner.userId);
+  const ownerId = owner?.userId ?? (await db.world.findUnique({ where: { id: worldId }, select: { ownerId: true } }))?.ownerId;
+  if (ownerId) await leaveCombat(ownerId);
   await returnVisitors(worldId);
 }
 

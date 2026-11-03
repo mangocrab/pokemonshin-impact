@@ -168,7 +168,7 @@ export function Battle({
   const ultimate = ULTIMATES[active.ultimateId],
     passive = PASSIVES[active.passiveId];
   const coop = battle.coop,
-    coopLocked = Boolean(coop?.lobby || coop?.submitted || coop?.spectating);
+    coopLocked = Boolean(coop?.paused || coop?.lobby || coop?.submitted || coop?.spectating);
   const act = (action: BattleAction) =>
     request(coop ? "coop/action" : "action", {
       battleId: battle.id,
@@ -199,7 +199,9 @@ export function Battle({
                       abandoned: "전투 종료",
                     } as Record<string, string>
                   )[battle.status]
-                : coop?.lobby
+                : coop?.paused
+                  ? `${battle.round}라운드 · 재접속 대기`
+                  : coop?.lobby
                   ? "협동 전투 참여 확인"
                   : coop?.spectating
                     ? `${battle.round}라운드 · 관전`
@@ -289,7 +291,9 @@ export function Battle({
                   HP {p.hp}/{p.maxHp} ·{" "}
                   {p.left
                     ? "이탈"
-                    : coop.lobby
+                    : p.reconnectUntil
+                      ? "복귀 대기"
+                      : coop.lobby
                       ? p.ready
                         ? "참여 확인 완료"
                         : "참여 확인 대기"
@@ -301,6 +305,12 @@ export function Battle({
                 </span>
               </div>
             ))}
+            {coop.paused && <section className="reconnect-notice" aria-label="협동 재접속">
+              <b>연결 복구 대기 · 전투 일시정지</b>
+              <p>남은 {Math.max(0, Math.ceil(((coop.reconnectUntil ?? now) - now) / 1000))}초 안에 복귀하세요. 라운드·선택한 행동·아이템 수량은 보존됩니다.</p>
+              {coop.resumeRequired && <button disabled={busy || (!coop.ownerAvailable && coop.ownerId !== coop.userId)} onClick={() => request("coop/resume", { battleId: battle.id })}>협동 전투 복귀</button>}
+              {!coop.ownerAvailable && <p>소유자의 재접속을 기다리는 중입니다. 방문자는 개인 월드로 안전하게 돌아갑니다.</p>}
+            </section>}
             <p>
               남은 {Math.max(0, Math.ceil((coop.deadline - now) / 1000))}초 ·
               미선택은 자동 방어/대기 처리합니다. 전투 중에는 본인의 캐릭터만
@@ -329,7 +339,7 @@ export function Battle({
             </p>
             <button
               disabled={
-                busy || coop.party.find((p) => p.userId === coop.userId)?.ready
+                busy || coop.paused || coop.party.find((p) => p.userId === coop.userId)?.ready
               }
               onClick={() => request("coop/ready", { battleId: battle.id })}
             >
