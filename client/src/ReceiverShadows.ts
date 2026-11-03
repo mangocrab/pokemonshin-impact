@@ -4,7 +4,7 @@ import { receiverCandidates, receiverShadowMask, spriteOccluders, type LightOccl
 type AlphaFrame = { alpha: Uint8ClampedArray; width: number; height: number; scaleX: number; scaleY: number };
 type Surface = { key: string; canvas: HTMLCanvasElement; texture: Phaser.Textures.CanvasTexture; image: Phaser.GameObjects.Image };
 type Receiver = { sprite: Phaser.GameObjects.Image; id: string; stamp: string; frame: string; updated: number;
-  coverage: number; maximum: number; surface?: Surface };
+  coverage: number; maximum: number; inView: boolean; surface?: Surface };
 /** Height-aware 2.5D receiving masks. Original albedo and authoritative collision stay untouched. */
 export class ReceiverShadows {
   private receivers = new Map<Phaser.GameObjects.Image, Receiver>();
@@ -13,10 +13,11 @@ export class ReceiverShadows {
   private geometry = "";
   private sequence = 0;
   private enabled = false;
+  private maskBuilds = 0;
   constructor(private scene: Phaser.Scene) {}
   register(sprite: Phaser.GameObjects.Image) {
     if (this.receivers.has(sprite)) return;
-    const receiver: Receiver = { sprite, id: `receiver-${++this.sequence}`, stamp: "", frame: "", updated: -Infinity, coverage: 0, maximum: 0 };
+    const receiver: Receiver = { sprite, id: `receiver-${++this.sequence}`, stamp: "", frame: "", updated: -Infinity, coverage: 0, maximum: 0, inView: false };
     this.receivers.set(sprite, receiver);
     sprite.once("destroy", () => {
       this.receivers.delete(sprite);
@@ -49,9 +50,15 @@ export class ReceiverShadows {
     if (stamp !== this.geometry) { this.geometry = stamp; this.occluders = volumes; }
   }
   configure(enabled: boolean) {
+    const changed = this.enabled !== enabled;
     this.enabled = enabled;
     if (!enabled) for (const r of this.receivers.values()) r.surface?.image.setVisible(false);
-    else this.update(true);
+    else this.update(changed);
+  }
+  private onScreen(sprite: Phaser.GameObjects.Image) {
+    const bounds = sprite.getBounds();
+    return this.scene.cameras.cameras.some(camera => camera.visible && !(sprite.cameraFilter & camera.id)
+      && Phaser.Geom.Intersects.RectangleToRectangle(bounds, camera.worldView));
   }
   private alphaFrame(sprite: Phaser.GameObjects.Image, key: string) {
     let cached = this.alphaFrames.get(key);
@@ -82,7 +89,8 @@ export class ReceiverShadows {
     const now = performance.now();
     for (const r of this.receivers.values()) {
       const sprite = r.sprite, frame = `${sprite.texture.key}:${sprite.frame.name}`;
-      if (!this.visible(sprite)) { r.surface?.image.setVisible(false); continue; }
+      r.inView = this.visible(sprite) && this.onScreen(sprite);
+      if (!r.inView) { r.surface?.image.setVisible(false); continue; }
       const b = this.bounds(sprite);
       const stamp = `${this.geometry}|${frame}|${b.x},${b.y},${b.width},${b.height}|${sprite.originX},${sprite.originY}`;
       const cached = this.alphaFrames.get(frame);
@@ -94,6 +102,7 @@ export class ReceiverShadows {
       const candidates = receiverCandidates(b.x, b.y, b.width, sprite.originX, this.occluders, r.id);
       if (!candidates.length) { r.coverage = r.maximum = 0; r.surface?.image.setVisible(false); continue; }
       const alpha = this.alphaFrame(sprite, frame);
+      this.maskBuilds++;
       const mask = receiverShadowMask(alpha.alpha, alpha.width, alpha.height,
         { ...b, owner: r.id, originX: sprite.originX, originY: sprite.originY }, candidates);
       r.coverage = mask.coverage; r.maximum = mask.maximum;
@@ -119,5 +128,6 @@ export class ReceiverShadows {
   }
   get summary() { return { enabled: this.enabled, volumes: this.enabled ? this.occluders.length : 0,
     shadedObjects: [...this.receivers.values()].filter((r) => this.state(r.sprite).active).length,
+    screenReceivers: this.enabled ? [...this.receivers.values()].filter(r => r.inView).length : 0, maskBuilds: this.maskBuilds,
     alphaFrames: this.alphaFrames.size, masks: [...this.receivers.values()].filter((r) => r.surface).length }; }
 }

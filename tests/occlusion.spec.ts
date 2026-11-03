@@ -25,6 +25,11 @@ test("height-aware receiving shadows follow the player, independent settings and
     expect((await receiving()).coverage).toBeLessThan(.95);
     expect((await relief()).occlusion.volumes).toBe(18);
     let panel = await open(); await panel.getByLabel("움직임 줄이기", { exact: true }).check(); await panel.getByLabel("환경 효과", { exact: true }).uncheck(); await save();
+    const cached = (await relief()).occlusion;
+    expect(cached.screenReceivers).toBeGreaterThan(0); expect(cached.screenReceivers).toBeLessThan((await relief()).objects);
+    // Saving unchanged settings must not regenerate settled receiving masks.
+    panel = await open(); await save();
+    expect((await relief()).occlusion.maskBuilds).toBe(cached.maskBuilds);
     panel = await open(); await panel.getByLabel("그림자", { exact: true }).uncheck(); await save();
     await expect.poll(async () => (await receiving()).active).toBe(false);
     panel = await open(); await panel.getByLabel("그림자", { exact: true }).check(); await panel.getByLabel("동적 조명", { exact: true }).uncheck(); await save();
