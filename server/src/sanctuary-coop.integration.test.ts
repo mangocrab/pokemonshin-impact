@@ -36,6 +36,7 @@ test("four-player sanctuary boss uses host unlock, real proximity, shared rechar
       u.socket.on("world:ready", (r) => { u.world = r.worldId; u.position = r.position; }); u.socket.on("world:position", (p) => { u.position = p; }); await connect(u);
     }
     const [host, guest] = users;
+    await db.worldQuest.create({ data: { worldId: host.worldId, questId: "sanctuary-song", progress: 0 } });
     const start = (u: User, extra = {}) => post(u, "/api/coop/start", { encounterId: SANCTUARY_ENCOUNTER.id, ...extra });
     assert.equal((await start(guest, { regions: [SANCTUARY.id], x: 1870, y: 720 })).status, 403);
     assert.equal((await start(host)).status, 409);
@@ -80,6 +81,8 @@ test("four-player sanctuary boss uses host unlock, real proximity, shared rechar
       s = await state();
     }
     assert.equal(s.status, "won");
+    assert.equal((await db.worldQuest.findUniqueOrThrow({ where: { worldId_questId: { worldId: host.worldId, questId: "sanctuary-song" } } })).progress, 1);
+    assert.equal(await db.worldQuest.count({ where: { worldId: { in: users.slice(1).map((u) => u.worldId) }, questId: "sanctuary-song" } }), 0);
     for (let i = 0; i < users.length; i++) {
       const after = (await get(users[i], "/api/economy")).wallet;
       assert.equal(after.conch, before[i].conch + 40); assert.equal(after.shell, before[i].shell + 500);

@@ -21,6 +21,8 @@ async function canInteract(actor: Actor, worldId: string, npcId: string) {
   if (actor.battleId || await activeCoop(actor.userId)) throw new WorldError(409, "전투를 마친 뒤 대화하세요.");
   const npc = NPCS.find((n) => n.id === npcId);
   if (!npc) throw new WorldError(400, "존재하지 않는 주민입니다.");
+  if ("regionId" in npc && !(await db.worldRegion.findUnique({ where: { worldId_regionId: { worldId, regionId: npc.regionId } } })))
+    throw new WorldError(403, "먼저 이 월드의 지역을 해금하세요.");
   if (Math.hypot(actor.position.x - npc.x, actor.position.y - npc.y) > INTERACTION_RADIUS)
     throw new WorldError(409, "주민 가까이 이동하세요.");
   return npc;
@@ -60,10 +62,12 @@ export function registerStory(io: Server) {
         return db.$transaction(async (tx) => {
           if (quest.requires && !(await tx.worldQuest.findUnique({ where: { worldId_questId: { worldId: input.worldId, questId: quest.requires } } }))?.claimedAt)
             throw new WorldError(409, "앞선 부탁을 완료하고 보상을 받아야 합니다.");
+          if (quest.requiredRegion && !(await tx.worldRegion.findUnique({ where: { worldId_regionId: { worldId: input.worldId, regionId: quest.requiredRegion } } })))
+            throw new WorldError(403, "먼저 이 월드의 지역을 해금하세요.");
           const key = { worldId: input.worldId, questId: quest.id };
           let claimed = false;
           if (req.params.operation === "accept") {
-            const progress = quest.objective === "chest" ? Math.min(quest.target, await chestCount(tx, input.worldId)) : 0;
+            const progress = quest.objective === "chest" ? Math.min(quest.target, await chestCount(tx, input.worldId, quest)) : 0;
             await tx.worldQuest.createMany({ data: [{ ...key, progress }], skipDuplicates: true });
           } else {
             const row = await tx.worldQuest.findUnique({ where: { worldId_questId: key } });

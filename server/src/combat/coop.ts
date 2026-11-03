@@ -105,7 +105,7 @@ async function save(
           );
         }
       if (s.status === "won" && s.members.some((m) => m.userId === s.ownerId && m.ready && !m.left))
-        await recordWorldVictory(tx, s.worldId);
+        await recordWorldVictory(tx, s.worldId, s.enemy.id);
       const updated = await tx.coopBattle.updateMany({
         where: { id: s.id, version: s.version },
         data: {

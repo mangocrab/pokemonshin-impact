@@ -306,7 +306,7 @@ export function Game({
           },
         );
         talk.current = () => {
-          const npc = nearbyNpc(this.player);
+          const npc = nearbyNpc(this.player, regions);
           if (npc && ready && activeRef.current)
             window.dispatchEvent(new CustomEvent("npc:talk", { detail: { npcId: npc.id, worldId } }));
         };
@@ -315,7 +315,7 @@ export function Game({
         };
         interact.current = () => {
           if (owner && findChest(this.player)) void openNearby(this.player);
-          else if (nearbyNpc(this.player)) talk.current();
+          else if (nearbyNpc(this.player, regions)) talk.current();
           else inspect.current();
         };
         this.input.keyboard!.on("keydown-E", () => interact.current());
@@ -353,7 +353,7 @@ export function Game({
         setNearby(chest?.name ?? "");
         setPuzzleNear(ready && activeRef.current && nearPuzzle(this.player));
         setArea(this.player.x > SANCTUARY.boundary ? SANCTUARY.name : "산호 해안");
-        setNpcName(ready && activeRef.current ? nearbyNpc(this.player)?.talkLabel ?? "" : "");
+        setNpcName(ready && activeRef.current ? nearbyNpc(this.player, regions)?.talkLabel ?? "" : "");
         setNearEnemy(ready && owner && activeRef.current ? nearbyEncounter(this.player, regions) : undefined);
         if (!activeRef.current) {
           x = 0;

@@ -1,3 +1,4 @@
+import { NPCS } from "../../shared/story";
 import { SANCTUARY_ENCOUNTER } from "../../shared/combat";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SANCTUARY, TIDE_PUZZLE, RUNES, type AdventureView } from "../../shared/adventure";
@@ -56,10 +57,11 @@ export function Adventure({ mapOpen, onCloseMap, onActiveChange, inBattle }: { m
         <text x="260" y="460">산호 해안</text><text x="1680" y="735">물결의 안뜰</text>
         <circle cx="845" cy="640" r="18" fill="#397b68"/><text x="820" y="720">다온</text><circle cx="1210" cy="700" r="18" fill="#916b48"/><text x="1150" y="640">모루</text>
         <circle cx="1460" cy="800" r="22" fill="#6f78a3"/><text x="1260" y="930">세 파도의 종</text>
-        <circle cx={SANCTUARY_ENCOUNTER.x} cy={SANCTUARY_ENCOUNTER.y} r="20" fill="#bc7950"/><text x="1700" y="915">꽃등지기</text>
+        <circle cx="1740" cy="900" r="18" fill="#788a64"/><text x="1755" y="980">세린</text>
+        <circle cx={SANCTUARY_ENCOUNTER.x} cy={SANCTUARY_ENCOUNTER.y} r="20" fill="#bc7950"/><text x="1720" y="630">꽃등지기</text>
       </svg>
       <p>주요 위치를 표시한 지도입니다. 제단은 항구 길 동쪽 (1460,800)에 있습니다.</p>
-      {state ? <section className="quest-card"><h3>{SANCTUARY.name} · {state.regions.includes(SANCTUARY.id) ? "해금됨" : "잠김"}</h3><p>{TIDE_PUZZLE.clue}</p><p>해금 조건: {TIDE_PUZZLE.requirement} 후 제단의 순서를 완성하세요.</p><p>{SANCTUARY_ENCOUNTER.name} ({SANCTUARY_ENCOUNTER.x},{SANCTUARY_ENCOUNTER.y}) · 자연 속성 · 1인 또는 최대4인 협동 도전. 만개 예고를 보고 방어하거나 교체하세요.</p><p>제단 진행 {state.puzzle.progress}/3 · 안뜰의 선물 {state.treasureOpened ? "수령 완료" : "미발견"}</p>{!state.isOwner && <p>방문한 월드의 기록입니다. 주인이 연 길은 함께 탐험할 수 있습니다.</p>}</section> : <p>{error || "탐험 기록을 불러오는 중…"}</p>}
+      {state ? <section className="quest-card"><h3>{SANCTUARY.name} · {state.regions.includes(SANCTUARY.id) ? "해금됨" : "잠김"}</h3><p>{TIDE_PUZZLE.clue}</p><p>해금 조건: {TIDE_PUZZLE.requirement} 후 제단의 순서를 완성하세요.</p><p>{SANCTUARY_ENCOUNTER.name} ({SANCTUARY_ENCOUNTER.x},{SANCTUARY_ENCOUNTER.y}) · 자연 속성 · 1인 또는 최대4인 협동 도전. 만개 예고를 보고 방어하거나 교체하세요.</p><p>{NPCS.find((n) => n.id === "serin")?.location} · 꽃의 리듬과 여름 편지를 기록하는 부탁을 받을 수 있습니다.</p><p>제단 진행 {state.puzzle.progress}/3 · 안뜰의 선물 {state.treasureOpened ? "수령 완료" : "미발견"}</p>{!state.isOwner && <p>방문한 월드의 기록입니다. 주인이 연 길은 함께 탐험할 수 있습니다.</p>}</section> : <p>{error || "탐험 기록을 불러오는 중…"}</p>}
       <button onClick={() => { void reload(); }}>지역 기록 새로고침</button>
     </article></div>}
     {opened && <div className="modal story-overlay" role="dialog" aria-modal="true" aria-label={TIDE_PUZZLE.name}><article className="story-panel">

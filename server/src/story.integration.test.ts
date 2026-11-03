@@ -106,7 +106,8 @@ test("NPC quests validate distance and ownership, persist objectives and grant e
     assert.equal((await get(host)).quests.find((q: any) => q.id === "coastal-map").progress, 2);
     await walk(host, 1260, 800); assert.equal((await post(host, "/api/world/chest", { worldId: host.worldId, chestId: "harbor-1" })).status, 200);
     await walk(host, 1210, 700); assert.equal((await quest(host, "claim", "coastal-map")).status, 200);
-    assert.ok((await get(host)).quests.every((q: any) => q.state === "claimed"));
+    assert.ok((await get(host)).quests.filter((q: any) => ["first-gift", "coast-guardian", "coastal-map"].includes(q.id)).every((q: any) => q.state === "claimed"));
+    assert.equal((await get(host)).quests.find((q: any) => q.id === "sanctuary-song").state, "locked");
     assert.equal((await get(guest)).quests[0].state, "active");
     assert.equal((await get(guest)).quests[0].progress, 0);
     await assert.rejects(db.worldQuest.update({ where: { worldId_questId: { worldId: guest.worldId, questId: "first-gift" } }, data: { progress: -1 } }));

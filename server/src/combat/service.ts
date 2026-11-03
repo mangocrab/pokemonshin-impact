@@ -174,7 +174,7 @@ export function registerCombat(io: Server) {
               current.id,
               state.team.map((c) => c.id),
             );
-          if (state.status === "won") await recordWorldVictory(tx, current.worldId);
+          if (state.status === "won") await recordWorldVictory(tx, current.worldId, state.enemy.id);
           const changed = await tx.battle.updateMany({
             where: {
               id: current.id,

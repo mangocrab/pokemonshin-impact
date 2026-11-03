@@ -48,6 +48,10 @@ test("solve bells with persisted progress, open sanctuary, walk across bridge an
     await expect(page.getByLabel("보유 재화")).toContainText("3,360");
     await page.screenshot({ path: testInfo.outputPath("solved-bells.png") });
     await puzzle().getByRole("button", { name: "조사 마치기", exact: true }).click();
+    await page.getByRole("button", { name: "모험 일지", exact: true }).click();
+    const journal = page.getByRole("dialog", { name: "모험 일지", exact: true });
+    await expect(journal.getByRole("region", { name: "안뜰의 잠든 노래", exact: true })).toContainText("받을 수 있는 부탁");
+    await journal.getByRole("button", { name: "닫기", exact: true }).click();
     const treasure = page.getByRole("button", { name: /안뜰의 오래된 선물 열기/ }); await eastUntil(treasure);
     await expect(page.getByText("물결의 안뜰 · 안뜰의 선물 0/1", { exact: true })).toBeVisible();
     const response = page.waitForResponse((r) => r.url().endsWith("/api/world/chest") && r.request().method() === "POST");

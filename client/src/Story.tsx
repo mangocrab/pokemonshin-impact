@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { NPCS, QUESTS, type DialogueView, type NpcId, type QuestView, type StoryView } from "../../shared/story";
 import { materialName } from "../../shared/economy";
-const stateNames = { locked: "이전 부탁 완료 필요", available: "받을 수 있는 부탁", active: "진행 중", ready: "목표 달성 · 주민에게 돌아가기", claimed: "완료 · 보상 수령" };
+const stateNames = { locked: "선행 조건 미충족", available: "받을 수 있는 부탁", active: "진행 중", ready: "목표 달성 · 주민에게 돌아가기", claimed: "완료 · 보상 수령" };
 function Reward({ quest }: { quest: QuestView }) {
   return <p className="quest-reward">소라 {quest.reward.conch} · 조개 {quest.reward.shell} · {Object.entries(quest.reward.items).map(([id, n]) => `${materialName(id)} ${n}개`).join(" · ")}</p>;
 }
@@ -38,11 +38,11 @@ export function Story({ inBattle, journalOpen, onCloseJournal, onOpenJournal, on
     };
     window.addEventListener("npc:talk", talk);
     window.addEventListener("story:world", world);
-    for (const name of ["story:changed", "world:loot", "characters:changed"]) window.addEventListener(name, update);
+    for (const name of ["story:changed", "world:loot", "characters:changed", "adventure:changed"]) window.addEventListener(name, update);
     return () => {
       epoch.current++; reads.current++; dialogueSequence.current++;
       window.removeEventListener("npc:talk", talk); window.removeEventListener("story:world", world);
-      for (const name of ["story:changed", "world:loot", "characters:changed"]) window.removeEventListener(name, update);
+      for (const name of ["story:changed", "world:loot", "characters:changed", "adventure:changed"]) window.removeEventListener(name, update);
     };
   }, [reload, closeDialogue]);
   useEffect(() => { if (inBattle || journalOpen) closeDialogue(); }, [inBattle, journalOpen, closeDialogue]);
@@ -77,7 +77,7 @@ export function Story({ inBattle, journalOpen, onCloseJournal, onOpenJournal, on
       <div className="story-title"><div><small>STORIES OF THE COAST</small><h2>모험 일지</h2></div><button onClick={onCloseJournal}>닫기</button></div>
       {!story ? <p>{error || "월드의 모험을 불러오는 중…"}</p> : <>
         {!story.isOwner && <p className="visitor-note">친구의 월드입니다. 대화와 목표 확인은 가능하지만 부탁 수락·완료·보상 수령은 주인만 할 수 있습니다.</p>}
-        {story.quests.map((q) => <section className="quest-card" key={q.id} aria-label={q.name}><small>{stateNames[q.state]}</small><h3>{q.name}</h3><p>{q.description}</p><p>{q.objectiveText} · {q.progress}/{q.target}</p><p>의뢰인: {NPCS.find((n) => n.id === q.npcId)?.name} · {q.npcId === "daon" ? "시작 지점 남쪽 산책길" : "쉼터 오른쪽 항구 길"}</p><Reward quest={q} /></section>)}
+        {story.quests.map((q) => <section className="quest-card" key={q.id} aria-label={q.name}><small>{stateNames[q.state]}</small><h3>{q.name}</h3><p>{q.description}</p>{q.requirementText && <p>선행 조건: {q.requirementText}</p>}<p>{q.objectiveText} · {q.progress}/{q.target}</p><p>의뢰인: {NPCS.find((n) => n.id === q.npcId)?.name} · {NPCS.find((n) => n.id === q.npcId)?.location}</p><Reward quest={q} /></section>)}
       </>}
       <button onClick={() => { void reload(); }}>모험 새로고침</button>
     </article></div>}
@@ -86,7 +86,7 @@ export function Story({ inBattle, journalOpen, onCloseJournal, onOpenJournal, on
       {!dialogue && !error && <p>이야기를 듣는 중…</p>}
       {dialogue?.lines.map((line, i) => <p className="npc-line" key={i}>{line}</p>)}
       {dialogue && story?.worldId === dialogue.worldId && story.quests.filter((q) => q.npcId === npc.id).map((q) => <section className="quest-card" key={q.id} aria-label={q.name}>
-        <small>{stateNames[q.state]}</small><h3>{q.name}</h3><p>{q.description}</p><p>{q.objectiveText} · {q.progress}/{q.target}</p><Reward quest={q} />
+        <small>{stateNames[q.state]}</small><h3>{q.name}</h3><p>{q.description}</p>{q.requirementText && <p>선행 조건: {q.requirementText}</p>}<p>{q.objectiveText} · {q.progress}/{q.target}</p><Reward quest={q} />
         {dialogue.isOwner && q.state === "available" && <button disabled={busy} onClick={() => { void act("accept", q.id); }}>부탁 받기</button>}
         {dialogue.isOwner && q.state === "ready" && <button disabled={busy} onClick={() => { void act("claim", q.id); }}>보상 받기</button>}
         {q.state === "claimed" && <p>{q.completion}</p>}
