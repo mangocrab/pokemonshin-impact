@@ -1220,13 +1220,29 @@ input, select { accent-color:#376caa; }
 .burst-cut-in[data-element="번개"] { --burst:#c3a4ff; }
 .burst-cut-in[data-element="얼음"] { --burst:#bcefff; }
 .burst-cut-in[data-element="자연"] { --burst:#b5e999; }
-.burst-portrait { width:115px; height:165px; align-self:flex-end; filter:drop-shadow(0 0 14px var(--burst)); }
-.burst-cut-in>div { position:relative; z-index:1; display:flex; flex-direction:column; gap:6px; padding:16px 0; }
+.burst-portrait { position:relative; z-index:1; width:115px; height:165px; align-self:flex-end; filter:drop-shadow(0 0 14px var(--burst)); }
+.burst-copy { position:relative; z-index:1; display:flex; flex-direction:column; gap:6px; padding:16px 0; }
 .burst-cut-in small { color:var(--burst); font-size:11px; letter-spacing:3px; }
 .burst-cut-in strong { color:#fff5dc; font-size:clamp(19px,3vw,29px); font-family:Georgia,serif; }
 .burst-cut-in span { font-size:13px; color:#e6d3a4; }
 .battle-field[data-motion="true"] .burst-cut-in { animation:burst-reveal 1.8s ease-out both; }
-.battle-field[data-effects="true"] .burst-cut-in::before { content:""; position:absolute; width:250px; height:250px; border:1px solid var(--burst); border-radius:50%; box-shadow:0 0 24px var(--burst),inset 0 0 32px #ffffff16; opacity:.25; transform:rotate(-20deg) scaleX(1.8); }
+.burst-signature { position:absolute; right:0; bottom:0; width:clamp(210px,46%,330px); height:100%; color:var(--burst); fill:none; stroke:currentColor; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round; opacity:.4; pointer-events:none; }
+.burst-core, .burst-trails, .burst-stars { transform-box:view-box; transform-origin:120px 80px; }
+.burst-core { stroke-width:2; }
+.burst-trails { opacity:.55; stroke:#eedbb3; }
+.burst-stars { fill:currentColor; stroke:none; opacity:.55; }
+.battle-field[data-effects="false"] .burst-signature { display:none; }
+.battle-field[data-motion="true"] .burst-trails { animation:signature-trails 1.7s ease-out both; }
+.battle-field[data-motion="true"] .burst-stars { animation:signature-stars 1.7s ease-out both; }
+.battle-field[data-motion="true"] [data-signature="tide"] .burst-core { animation:signature-tide 1.6s ease-out both; }
+.battle-field[data-motion="true"] [data-signature="feather"] .burst-core { animation:signature-feather 1.6s ease-out both; }
+.battle-field[data-motion="true"] [data-signature="canopy"] .burst-core { transform-origin:120px 132px; animation:signature-canopy 1.6s ease-out both; }
+.battle-field[data-motion="true"] [data-signature="sunblade"] .burst-core { animation:signature-sunblade 1.6s ease-out both; }
+.battle-field[data-motion="true"] [data-signature="thunder"] .burst-core { stroke-dasharray:800; animation:signature-thunder 1.6s ease-out both; }
+.battle-field[data-motion="true"] [data-signature="frost"] .burst-core { animation:signature-frost 1.6s ease-out both; }
+.battle-field[data-motion="true"] [data-signature="sail"] .burst-core { animation:signature-sail 1.6s ease-out both; }
+.battle-field[data-motion="true"] [data-signature="roots"] .burst-core { transform-origin:120px 150px; animation:signature-roots 1.6s ease-out both; }
+.battle-field[data-motion="false"] .burst-signature g { animation:none; }
 .battle-field[data-effects="false"] .burst-portrait { display:none; }
 .battle-field[data-motion="false"] .health-track i { transition:none; }
 @keyframes result-rise { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
@@ -1236,10 +1252,23 @@ input, select { accent-color:#376caa; }
   .result-chips { right:-7px; }
   .result-chips span { font-size:11px; padding:3px 5px; }
   .burst-cut-in { gap:6px; min-height:137px; }
-  .burst-portrait { width:90px; height:145px; }
+  .burst-portrait { position:relative; z-index:1; width:90px; height:145px; }
   .burst-cut-in small { letter-spacing:1px; }
 }
 @media (prefers-reduced-motion:reduce) {
   .battle-field .result-chips, .battle-field .burst-cut-in, .battle-field [data-impact="true"] .battle-illustration { animation:none !important; }
   .battle-field .health-track i { transition:none; }
 }
+
+@keyframes signature-tide { from { opacity:0; transform:scale(.75) translateY(12px); } 45% { opacity:1; } to { opacity:.85; transform:scale(1.08); } }
+@keyframes signature-feather { from { opacity:0; transform:rotate(-24deg) translateY(12px); } 40% { opacity:1; } to { opacity:.85; transform:rotate(8deg); } }
+@keyframes signature-canopy { from { opacity:0; transform:scale(.65,.35); } 45% { opacity:1; } to { opacity:.85; transform:scale(1); } }
+@keyframes signature-sunblade { from { opacity:0; transform:translate(-28px,12px) rotate(-12deg); } 30% { opacity:1; } to { opacity:.85; transform:translate(5px,-3px) rotate(3deg); } }
+@keyframes signature-thunder { from { opacity:0; stroke-dashoffset:800; } 20% { opacity:1; } 65%,to { stroke-dashoffset:0; opacity:.85; } }
+@keyframes signature-frost { from { opacity:0; transform:scale(.35) rotate(-30deg); } 40% { opacity:1; } to { opacity:.85; transform:scale(1) rotate(0); } }
+@keyframes signature-sail { from { opacity:0; transform:translateX(-24px); } 35% { opacity:1; } to { opacity:.85; transform:translateX(12px); } }
+@keyframes signature-roots { from { opacity:0; transform:scaleY(.25) translateY(8px); } 45% { opacity:1; } to { opacity:.85; transform:scaleY(1); } }
+@keyframes signature-trails { from { opacity:0; transform:scale(.88); } 40% { opacity:.65; } to { opacity:.4; transform:scale(1.06); } }
+@keyframes signature-stars { from { opacity:0; transform:translateY(8px); } 45% { opacity:.65; } to { opacity:.3; transform:translateY(-6px); } }
+@media (max-width:700px) { .burst-signature { width:210px; height:100%; right:-8px; opacity:.28; } .burst-copy { max-width:68%; } }
+@media (prefers-reduced-motion:reduce) { .battle-field .burst-signature g { animation:none !important; } }

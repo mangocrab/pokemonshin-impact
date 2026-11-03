@@ -1,4 +1,5 @@
 import { test } from "node:test";
+import { CHARACTERS, ULTIMATES } from "../../shared/combat.js";
 import assert from "node:assert/strict";
 import { createBattle, resolveBattle } from "./combat/engine.js";
 import { battleFeedback, travelerStep, travelerFrame, TRAVELER_DIRECTIONS, type TravelerStep } from "../../shared/presentation.js";
@@ -78,4 +79,15 @@ test("four-direction strides choose distinct frames, preserve facing on stop and
     assert.equal(travelerFrame(step, 3000, true), `${direction}-0`);
   }
   assert.equal(TRAVELER_DIRECTIONS.length, 4);
+});
+
+test("all eight resolved ultimates identify the correct portrait, element and skill for presentation", () => {
+  for (const character of CHARACTERS) {
+    const before = createBattle(`signature-${character.id}`, [character]); before.team[0].energy = 100;
+    const original = structuredClone(before), after = resolveBattle(before, { type: "ultimate" }, () => 0);
+    assert.deepEqual(battleFeedback(before, after)?.burst, { characterId: character.id, name: character.name,
+      element: character.element, skillName: ULTIMATES[character.ultimateId].name });
+    assert.deepEqual(before, original);
+    assert.ok(after.team[0].energy < 100);
+  }
 });
