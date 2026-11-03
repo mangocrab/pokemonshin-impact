@@ -395,14 +395,14 @@ export function Game({
           <button
             onClick={() =>
               window.dispatchEvent(
-                new CustomEvent(playerCount > 1 && nearEnemy.id === ENCOUNTER.id ? "coop:start" : "battle:start", { detail: { encounterId: nearEnemy.id } }),
+                new CustomEvent(playerCount > 1 ? "coop:start" : "battle:start", { detail: { encounterId: nearEnemy.id } }),
               )
             }
           >
-            {playerCount > 1 && nearEnemy.id === ENCOUNTER.id ? "협동 보스전 모집" : `${nearEnemy.name}와 전투`}
+            {playerCount > 1 ? (nearEnemy.id === ENCOUNTER.id ? "협동 보스전 모집" : "안뜰 협동 보스전 모집") : `${nearEnemy.name}와 전투`}
           </button>
         )}
-        {nearEnemy?.id === SANCTUARY_ENCOUNTER.id && <span>안뜰 도전 · 1인 전투 · 방문자가 있으면 시작할 수 없습니다</span>}
+        {nearEnemy?.id === SANCTUARY_ENCOUNTER.id && <span>안뜰 도전 · 혼자 또는 최대 4인 협동</span>}
         {puzzleNear && <button onClick={() => inspect.current()}>[E] 세 파도의 종 조사</button>}
         {regionNames.includes(SANCTUARY.id) && <span>{area} · 안뜰의 선물 {secretFound ? 1 : 0}/1</span>}
         {npcName && <button onClick={() => talk.current()}>[E] {npcName}</button>}

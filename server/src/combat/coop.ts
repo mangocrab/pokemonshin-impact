@@ -19,7 +19,7 @@ import {
 } from "../exploration.js";
 import { roster, grantExperience } from "../training.js";
 import {
-  ENCOUNTER,
+  ENCOUNTERS,
   type BattleAction,
   type BattleState,
   blockedReason,
@@ -32,6 +32,7 @@ import {
   coopPaused,
   nextCoopDeadline,
   COOP_RECONNECT_MS,
+  cooperativeEnemy,
 } from "../../../shared/coop.js";
 import {
   createBattle,
@@ -148,13 +149,7 @@ function startReady(s: CoopState) {
   if (members.length < 2) return false;
   if (!members.every((m) => m.ready) || coopPaused(s)) return false;
   s.status = "active";
-  s.enemy.maxHp = s.enemy.hp = Math.round(
-    220 * (1 + 0.8 * (members.length - 1)),
-  );
-  s.enemy.attack = Math.round(36 * (1 + 0.15 * (members.length - 1)));
-  s.enemy.name = "산호 수호게";
-  s.enemy.statusImmunities = ["freeze"];
-  s.enemy.statusResistance = { burn: 0.25, shock: 0.25 };
+  s.enemy = cooperativeEnemy(s.enemy, members.length);
   s.deadline = Date.now() + 60000;
   s.log = [
     "협동 보스전 시작! 모두 행동을 선택하세요. 3라운드마다 광역 공격을 사용합니다.",
@@ -259,6 +254,7 @@ async function resumeMember(s: CoopState, actor: Actor, announce: boolean) {
   let resolved;
   if (wasPaused && !coopPaused(s)) {
     s.deadline = Date.now() + 60000;
+    s.log = ["모든 참가자가 복귀하여 협동 전투를 재개했습니다. 행동을 선택하세요."];
     if (s.status === "lobby") startReady(s);
     else resolved = resolveIfReady(s);
   }
@@ -378,16 +374,19 @@ export function registerCoop(io: Server) {
               403,
               "월드 소유자만 협동 전투를 모집할 수 있습니다.",
             );
-          if (req.body?.encounterId !== ENCOUNTER.id)
+          const encounter = ENCOUNTERS.find((e) => e.id === req.body?.encounterId);
+          if (!encounter)
             throw new WorldError(400, "알 수 없는 적입니다.");
+          if ("regionId" in encounter && !(await db.worldRegion.findUnique({ where: { worldId_regionId: { worldId: actor.worldId, regionId: encounter.regionId } } })))
+            throw new WorldError(403, "먼저 이 월드의 지역을 해금하세요.");
           const candidates = (await onlineActors())
             .filter(
               (a) =>
                 a.worldId === actor.worldId &&
                 Math.hypot(
-                  a.position.x - ENCOUNTER.x,
-                  a.position.y - ENCOUNTER.y,
-                ) <= 64,
+                  a.position.x - encounter.x,
+                  a.position.y - encounter.y,
+                ) <= encounter.radius,
             )
             .sort((a, b) =>
               a.userId === u.id
@@ -423,6 +422,7 @@ export function registerCoop(io: Server) {
                 .filter((c) => c.slot !== null)
                 .sort((a, b) => a.slot! - b.slot!)
                 .slice(0, 4),
+              encounter,
             );
             members.push({
               userId: a.userId,
@@ -441,7 +441,7 @@ export function registerCoop(io: Server) {
             round: 1,
             status: "lobby",
             deadline: Date.now() + 60000,
-            enemy: createBattle(id).enemy,
+            enemy: createBattle(id, undefined, encounter).enemy,
             members,
             log: ["협동 전투 참여를 확인하세요. 수락한 참가자만 시작합니다."],
           };

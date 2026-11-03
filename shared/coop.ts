@@ -3,6 +3,9 @@ import {
   type BattleAction,
   type Fighter,
   blockedReason,
+  ENCOUNTER,
+  SANCTUARY_ENCOUNTER,
+  ENEMY_DEFINITIONS,
 } from "./combat.js";
 export type CoopMemberState = {
   userId: string;
@@ -109,4 +112,16 @@ export function coopPaused(s: CoopState) {
 }
 export function nextCoopDeadline(s: CoopState) {
   return coopPaused(s) ? Math.min(...s.members.filter((m) => !m.left && m.reconnectUntil !== undefined).map((m) => m.reconnectUntil!)) : s.deadline;
+}
+
+export const COOP_BOSSES: Record<string, string> = {
+  [ENCOUNTER.id]: "산호 수호게",
+  [SANCTUARY_ENCOUNTER.id]: "안뜰 만개지기",
+};
+export function cooperativeEnemy(enemy: Fighter, count: number): Fighter {
+  if (!Number.isInteger(count) || count < 2 || count > 4) throw new Error("Co-op requires 2-4 members");
+  const base = ENEMY_DEFINITIONS[enemy.id];
+  if (!base || !COOP_BOSSES[enemy.id]) throw new Error("Unknown cooperative encounter");
+  const maxHp = Math.round(base.maxHp * (1 + 0.8 * (count - 1)));
+  return { ...enemy, maxHp, hp: maxHp, attack: Math.round(base.attack * (1 + 0.15 * (count - 1))), name: COOP_BOSSES[enemy.id], statusImmunities: ["freeze"], statusResistance: { burn: 0.25, shock: 0.25 } };
 }

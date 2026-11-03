@@ -37,7 +37,7 @@ test("sanctuary battle checks live ownership, database unlock and distance, pers
     assert.equal((await post(host, "/api/social/entry-answer", { id: entry.id, decision: "accept" })).status, 200);
     assert.equal((await start(remote)).status, 403); assert.equal((await start(host)).status, 409);
     assert.equal((await post(remote, "/api/social/leave", {})).status, 200);
-    assert.equal((await post(host, "/api/coop/start", { encounterId: SANCTUARY_ENCOUNTER.id })).status, 400);
+    assert.equal((await post(host, "/api/coop/start", { encounterId: SANCTUARY_ENCOUNTER.id })).status, 409);
     await db.worldQuest.createMany({ data: [
       { worldId: host.worldId, questId: "first-gift", progress: 1, acceptedAt: new Date(Date.now() - 1000), claimedAt: new Date() },
       { worldId: host.worldId, questId: "coast-guardian", progress: 0 },
