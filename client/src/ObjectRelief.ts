@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import { ART } from "./art-manifest";
-import { buildNormalMap, shadowLayout, surfaceMaterial } from "../../shared/surface-relief";
+import { buildNormalMap, shadowLayout, shadowRasterSize, shadowBandWeights, SHADOW_BLURS, surfaceMaterial } from "../../shared/surface-relief";
 import { ReceiverShadows } from "./ReceiverShadows";
 
 type Atlas = "world" | "traveler";
@@ -9,7 +9,7 @@ type Binding = { sprite: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Im
 export class ObjectRelief {
   private normals = new Set<Atlas>();
   private objects = new Map<Phaser.GameObjects.Image, Binding>();
-  private shadows = new Map<string, ReturnType<typeof shadowLayout> & { scale: number }>();
+  private shadows = new Map<string, ReturnType<typeof shadowLayout> & { scaleX: number; scaleY: number }>();
   private lighting = false;
   private castShadows = true;
   private ready = false;
@@ -41,26 +41,41 @@ export class ObjectRelief {
     let layout = this.shadows.get(key);
     if (!layout) {
       const frame = sprite.frame;
-      const scale = Math.min(1, 128 / frame.realHeight);
-      const width = Math.max(1, Math.round(frame.realWidth * scale)), height = Math.max(1, Math.round(frame.realHeight * scale));
+      const { width, height, scaleX, scaleY } = shadowRasterSize(frame.realWidth, frame.realHeight);
       const silhouette = document.createElement("canvas"); silhouette.width = width; silhouette.height = height;
       const mask = silhouette.getContext("2d")!;
       // Phaser's trim offsets reconstruct the common traveler cell before projecting it.
       mask.drawImage(sprite.texture.getSourceImage() as HTMLImageElement, frame.cutX, frame.cutY, frame.cutWidth, frame.cutHeight,
-        frame.x * scale, frame.y * scale, frame.width * scale, frame.height * scale);
+        frame.x * scaleX, frame.y * scaleY, frame.width * scaleX, frame.height * scaleY);
       mask.globalCompositeOperation = "source-in"; mask.fillStyle = "#253943"; mask.fillRect(0, 0, width, height);
       const projection = shadowLayout(width, height);
       const canvas = document.createElement("canvas"); canvas.width = projection.width; canvas.height = projection.height;
-      const ctx = canvas.getContext("2d")!; ctx.filter = "blur(1.4px)";
-      ctx.setTransform(projection.a, projection.b, projection.c, projection.d, projection.e, projection.f);
-      ctx.drawImage(silhouette, 0, 0);
+      const ctx = canvas.getContext("2d")!;
+      const source = mask.getImageData(0, 0, width, height), band = mask.createImageData(width, height);
+      // Split original alpha into overlapping height bands, then blur each projected band.
+      // Additive composition preserves the partition's opacity instead of darkening its overlaps.
+      ctx.globalCompositeOperation = "lighter";
+      for (let layer = 0; layer < SHADOW_BLURS.length; layer++) {
+        for (let y = 0; y < height; y++) {
+          const weight = shadowBandWeights(1 - (y + .5) / height)[layer];
+          for (let x = 0; x < width; x++) {
+            const p = (y * width + x) * 4;
+            band.data[p] = 37; band.data[p + 1] = 57; band.data[p + 2] = 67;
+            band.data[p + 3] = Math.round(source.data[p + 3] * weight);
+          }
+        }
+        mask.putImageData(band, 0, 0);
+        ctx.filter = `blur(${SHADOW_BLURS[layer]}px)`;
+        ctx.setTransform(projection.a, projection.b, projection.c, projection.d, projection.e, projection.f);
+        ctx.drawImage(silhouette, 0, 0);
+      }
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.filter = "none";
       ctx.globalCompositeOperation = "destination-in";
       const fade = ctx.createLinearGradient(0, projection.originY * canvas.height, 0, canvas.height);
       fade.addColorStop(0, "rgba(0,0,0,.95)"); fade.addColorStop(1, "rgba(0,0,0,.35)");
       ctx.fillStyle = fade; ctx.fillRect(0, 0, canvas.width, canvas.height);
       this.scene.textures.addCanvas(key, canvas);
-      layout = { ...projection, scale }; this.shadows.set(key, layout);
+      layout = { ...projection, scaleX, scaleY }; this.shadows.set(key, layout);
     }
     return { key, layout };
   }
@@ -99,7 +114,7 @@ export class ObjectRelief {
     if (!this.ready || !this.castShadows) { shadow.setVisible(false); return; }
     const { key, layout } = this.shadowTexture(sprite);
     if (binding.frame !== key) { shadow.setTexture(key).setOrigin(layout.originX, layout.originY); binding.frame = key; }
-    shadow.setPosition(sprite.x, sprite.y).setScale(sprite.scaleX / layout.scale, sprite.scaleY / layout.scale)
+    shadow.setPosition(sprite.x, sprite.y).setScale(sprite.scaleX / layout.scaleX, sprite.scaleY / layout.scaleY)
       .setVisible(this.castShadows && sprite.visible).setAlpha(.18 * sprite.alpha);
   }
   update() { for (const binding of this.objects.values()) this.sync(binding); if (this.ready) this.receivers.update(); }

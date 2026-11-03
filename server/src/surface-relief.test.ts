@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildNormalMap, shadowLayout, surfaceMaterial } from "../../shared/surface-relief.js";
+import { buildNormalMap, shadowLayout, shadowRasterSize, shadowBandWeights, SHADOW_BLURS, surfaceMaterial } from "../../shared/surface-relief.js";
 function mask() {
   const rgba = new Uint8ClampedArray(32 * 48 * 4);
   for (let y = 3; y < 45; y++) for (let x = 5; x < 27; x++) { const i = (y * 32 + x) * 4; rgba[i] = 180; rgba[i + 3] = 255; }
@@ -62,4 +62,30 @@ test("surface relief has no diagonal bias when an irregular silhouette is reflec
     assert.ok(Math.abs(left[p + 1] - right[q + 1]) <= 1);
     assert.ok(Math.abs(left[p + 2] - right[q + 2]) <= 1);
   }
+});
+
+test("rounded shadow rasters preserve each axis and stay within the source sampling budget", () => {
+  for (const [width, height] of [[339, 303], [362, 362], [224, 306], [900, 30], [3, 5]]) {
+    const s = shadowRasterSize(width, height);
+    assert.ok(s.width <= 128 && s.height <= 128);
+    assert.ok(Math.abs(s.width / s.scaleX - width) < 1e-9);
+    assert.ok(Math.abs(s.height / s.scaleY - height) < 1e-9);
+    const projection = shadowLayout(s.width, s.height);
+    // Final display projection of source feet remains exactly at the body's base.
+    assert.ok(Math.abs((projection.a * s.width / 2 + projection.c * s.height + projection.e - projection.originX * projection.width) / s.scaleX) < 1e-9);
+    assert.ok(Math.abs((projection.d * s.height + projection.f - projection.originY * projection.height) / s.scaleY) < 1e-9);
+  }
+});
+test("contact-to-tip shadow bands preserve opacity and smoothly increase softness", () => {
+  let previous = -Infinity;
+  for (let i = 0; i <= 100; i++) {
+    const weights = shadowBandWeights(i / 100);
+    assert.ok(weights.every(w => w >= 0 && w <= 1));
+    assert.ok(Math.abs(weights.reduce((a, b) => a + b, 0) - 1) < 1e-9);
+    const blur = weights.reduce((sum, w, j) => sum + w * SHADOW_BLURS[j], 0);
+    assert.ok(blur >= previous && (previous === -Infinity || blur - previous < .025));
+    previous = blur;
+  }
+  assert.deepEqual(shadowBandWeights(-1), [1, 0, 0]);
+  assert.deepEqual(shadowBandWeights(2), [0, 0, 1]);
 });

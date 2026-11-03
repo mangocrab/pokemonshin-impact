@@ -58,8 +58,21 @@ export function buildNormalMap(rgba: Uint8ClampedArray, width: number, height: n
 
 /** Fixed upper-left sunlight: project each silhouette down/right onto the ground. */
 export function shadowLayout(width: number, height: number) {
-  const padding = 6, castX = .42, castY = .22;
+  const padding = 9, castX = .42, castY = .22;
   const w = Math.ceil(width + height * castX + padding * 2), h = Math.ceil(height * castY + padding * 2);
   return { width: w, height: h, originX: (width / 2 + padding) / w, originY: padding / h,
     a: 1, b: 0, c: -castX, d: -castY, e: height * castX + padding, f: height * castY + padding };
+}
+
+/** Equal-size source reconstruction despite rounding; cap both axes before GPU upload. */
+export function shadowRasterSize(width: number, height: number) {
+  const scale = Math.min(1, 128 / Math.max(width, height));
+  const w = Math.max(1, Math.round(width * scale)), h = Math.max(1, Math.round(height * scale));
+  return { width: w, height: h, scaleX: w / width, scaleY: h / height };
+}
+export const SHADOW_BLURS = [.5, 1.4, 2.6] as const;
+/** Overlapping height bands sum to one so soft layers don't triple the source opacity. */
+export function shadowBandWeights(heightFraction: number): readonly number[] {
+  const t = Math.max(0, Math.min(1, heightFraction)) * 2;
+  return [Math.max(0, 1 - t), 1 - Math.abs(t - 1), Math.max(0, t - 1)];
 }
