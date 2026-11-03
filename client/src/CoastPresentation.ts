@@ -2,6 +2,7 @@ import { ART } from "./art-manifest";
 import Phaser from "phaser";
 import { graphicsOptions, type GameSettings } from "../../shared/settings";
 import { travelerStep, travelerFrame, type TravelerStep } from "../../shared/presentation";
+import { ObjectRelief } from "./ObjectRelief";
 /** Painted diffuse atlas with an independent geometric normal map, matching authoritative terrain. */
 function paintedTiles(scene: Phaser.Scene) {
   const source = scene.textures.get("terrain-art").getSourceImage() as HTMLImageElement;
@@ -70,7 +71,9 @@ export class CoastPresentation {
   private last = -Infinity;
   private quality: "high" | "low" = "high";
   private travelers = new Map<Phaser.GameObjects.Container, TravelerStep>();
+  private relief: ObjectRelief;
   constructor(private scene: Phaser.Scene) {
+    this.relief = new ObjectRelief(scene);
     scene.add.tileSprite(1000, 500, 2000, 1000, "terrain-art", "water").setTileScale(0.5).setDepth(-110);
     coastTexture(scene);
     this.terrain = scene.add.image(800, 500, "coast-relief").setDisplaySize(1600, 1000).setDepth(-100);
@@ -79,17 +82,22 @@ export class CoastPresentation {
     for (let x = 1550; x < 1680; x += 16) scene.add.line(0, 0, x, 760, x, 840, 0x70543b, 0.22).setOrigin(0).setDepth(-79);
     scene.add.text(1710, 700, "물결의 안뜰", { fontSize: "20px", color: "#3f6b5b" }).setDepth(-80);
     this.waves = scene.add.graphics().setDepth(-90);
-    scene.lights.enable().setAmbientColor(0xeff2f7);
-    this.light = scene.lights.addLight(550, 100, 1400, 0xfff6e5, 0.12);
+    scene.lights.enable().setAmbientColor(0xdde4ee);
+    this.light = scene.lights.addLight(-400, -400, 3600, 0xfff6e5, 0.28).setZNormal(.28);
     this.terrain.setCrop(0, 0, 785, 500);
     this.terrain.setLighting(true).setSelfShadow(false);
     for (let i = 0; i < 18; i++) this.motes.push(scene.add.circle(140 + (i * 83) % 1350, 360 + (i * 59) % 580, 1 + i % 2, 0xd9f2ff, 0.4).setDepth(2000));
   }
   get motionEnabled() { return this.options.motion; }
+  get reliefState() { return this.relief.summary; }
+  travelerShadow(sprite: Phaser.GameObjects.Container) { return this.relief.shadowFrame(sprite.getByName("traveler-body") as Phaser.GameObjects.Image); }
+  finishObjects() { this.relief.scan(this.scene.children.list); }
+  activateObjects() { this.relief.activate(); }
   traveler(sprite: Phaser.GameObjects.Container) {
     const registered = this.travelers.has(sprite);
     this.travelers.set(sprite, { x: sprite.x, y: sprite.y, phase: 0, movingUntil: 0, direction: "south" });
     if (!registered) sprite.once("destroy", () => this.travelers.delete(sprite));
+    this.relief.register(sprite.getByName("traveler-body") as Phaser.GameObjects.Image);
   }
   shadow<T extends Phaser.GameObjects.Shape>(sprite: T): T {
     this.shadows.add(sprite); sprite.setVisible(this.options.shadows);
@@ -102,6 +110,7 @@ export class CoastPresentation {
     this.options = graphicsOptions(settings, systemReducedMotion); this.quality = settings.quality;
     this.scene.game.loop.setFPSLimit(settings.quality === "low" ? 20 : 30);
     this.terrain.setLighting(this.options.lighting);
+    this.relief.configure(this.options.lighting, this.options.shadows);
     if (this.options.lighting) this.scene.lights.enable(); else this.scene.lights.disable();
     for (const shadow of this.shadows) shadow.setVisible(this.options.shadows);
     for (const mote of this.motes) mote.setVisible(this.options.effects && this.options.motion);
@@ -124,13 +133,14 @@ export class CoastPresentation {
     for (const [sprite, old] of this.travelers) {
       const step = travelerStep(old, sprite, time);
       this.travelers.set(sprite, active ? step : { ...step, movingUntil: 0 });
-      const body = sprite.getAt(1) as Phaser.GameObjects.Image;
+      const body = sprite.getByName("traveler-body") as Phaser.GameObjects.Image;
       body.setFrame(travelerFrame(step, time, active && this.options.motion)).setY(5).setAngle(0).setFlipX(false);
     }
+    this.relief.update();
     if (!active || !this.options.motion || time - this.last < (this.quality === "low" ? 100 : 33)) return;
     this.last = time; this.drawWaves(time);
     for (const leaf of this.leaves) leaf.sprite.setAngle(leaf.angle + Math.sin(time * 0.0012 + leaf.phase) * 0.8);
-    if (this.options.lighting) this.light.setPosition(550 + Math.sin(time * 0.00012) * 70, 100);
+    // Fixed sunlight keeps the cast direction stable while the normal maps respond per pixel.
     if (this.options.effects) this.motes.forEach((mote, i) => {
       mote.setPosition(140 + (i * 83 + time * 0.005) % 1350, 360 + (i * 59) % 580 + Math.sin(time * 0.001 + i) * 12);
       mote.setAlpha(0.18 + (Math.sin(time * 0.0015 + i) + 1) * 0.12);

@@ -17,13 +17,19 @@ test("four-direction traveler frames follow real movement, idle at walls and res
     await expect(surface).toHaveAttribute("data-traveler-frame", "south-0");
     expect(await page.evaluate(async () => { const im = new Image(); im.src = "/art/traveler.webp"; await im.decode(); return im.naturalWidth > 1000; })).toBe(true);
     for (const [key, direction] of [["ArrowRight", "east"], ["ArrowDown", "south"], ["ArrowLeft", "west"], ["ArrowUp", "north"]]) {
+      // Observe actual frame changes through a full stride, including slow shader warm-up.
+      const observed = surface.evaluate((el, direction) => new Promise<string[]>((resolve) => {
+        const frames = new Set<string>(), observer = new MutationObserver(() => read());
+        const finish = () => { observer.disconnect(); clearTimeout(timer); resolve([...frames]); };
+        const read = () => {
+          frames.add((el as HTMLElement).dataset.travelerFrame!);
+          if (frames.has(`${direction}-1`) && frames.has(`${direction}-2`)) finish();
+        };
+        const timer = setTimeout(finish, 3500);
+        observer.observe(el, { attributes: true, attributeFilter: ["data-traveler-frame"] }); read();
+      }), direction);
       await page.keyboard.down(key);
-      // Observe the frame actually assigned to the Phaser image, over a full stride.
-      const frames = await surface.evaluate((el) => new Promise<string[]>((resolve) => {
-        const frames = new Set<string>(), until = performance.now() + 650;
-        const read = () => { frames.add((el as HTMLElement).dataset.travelerFrame!); if (performance.now() < until) requestAnimationFrame(read); else resolve([...frames]); };
-        read();
-      }));
+      const frames = await observed;
       await page.keyboard.up(key);
       expect(frames).toContain(`${direction}-1`); expect(frames).toContain(`${direction}-2`);
       await expect(surface).toHaveAttribute("data-traveler-frame", `${direction}-0`);

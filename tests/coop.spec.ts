@@ -4,7 +4,7 @@ import { createHash, randomBytes } from "node:crypto";
 test("four real browsers consent, synchronize one round, auto-wait recharge and receive personal victory XP", async ({
   browser,
 }, testInfo) => {
-  test.setTimeout(90000);
+  test.setTimeout(120000);
   const db = new PrismaClient(),
     prefix = "webcoop_" + Date.now(),
     contexts: BrowserContext[] = [],
@@ -54,8 +54,9 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
       pages.push(p);
       p.on("pageerror", (e) => errors.push(e.message));
       await p.goto("/");
-      // Four software-rendered WebGL contexts can take several seconds to warm up.
-      await expect(p.getByRole("status")).toContainText("불러왔습니다", { timeout: 15000 });
+      // Four high-quality software WebGL contexts share one GPU in this runner.
+      // This only bounds initial loading; the server's round deadlines are unchanged.
+      await expect(p.getByRole("status"), `World readiness for co-op client ${i}`).toContainText("불러왔습니다", { timeout: 30000 });
     }
     const host = pages[0];
     await host.request.post("/api/social/access", {
@@ -77,6 +78,12 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
       ).toBe(200);
     }
     await expect(host.getByText("내 월드 · 4/4")).toBeVisible();
+    for (const p of pages) {
+      await expect.poll(async () => {
+        const state = await p.locator(".game").getAttribute("data-object-relief");
+        return state ? JSON.parse(state) : null;
+      }, { timeout: 15000 }).toMatchObject({ objects: 21, atlases: 2, normalFrames: 24, litObjects: 21, projectedShadows: 21 });
+    }
     await host
       .getByRole("button", { name: "협동 보스전 모집", exact: true })
       .click();
@@ -210,6 +217,11 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
     ).toBe(4);
     expect(errors).toEqual([]);
   } finally {
+    const renderers = await Promise.all(pages.map(async (p) => ({
+      relief: await p.locator(".game").getAttribute("data-object-relief", { timeout: 1000 }).catch(() => null),
+      status: await p.getByRole("status").textContent({ timeout: 1000 }).catch(() => null),
+    })));
+    await testInfo.attach("renderer-diagnostics", { body: JSON.stringify({ errors, renderers }), contentType: "application/json" });
     for (const p of pages) await p.request.post("/api/logout").catch(() => {});
     for (const c of contexts) await c.close();
     await new Promise((r) => setTimeout(r, 300));
