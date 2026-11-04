@@ -4,7 +4,7 @@ import { Prisma } from "@prisma/client";
 import { randomInt, createHash } from "node:crypto";
 import { z } from "zod";
 import { authenticate, db } from "./auth.js";
-import { serial, WorldError } from "./exploration.js";
+import { serial, WorldError, refreshAvatar } from "./exploration.js";
 import { ensureRoster, grantExperience, roster } from "./training.js";
 import { ensureEconomy, addItem } from "./economy-store.js";
 import { CHARACTERS } from "../../shared/combat.js";
@@ -263,6 +263,8 @@ economyRouter.post("/:operation", async (req, res, next) => {
               const prior = await tx.userCharacter.findFirst({
                 where: { userId, slot: body.slot },
               });
+              if (prior?.characterId === "haerin" && c.characterId !== "haerin" && c.slot === null)
+                await tx.userSettings.updateMany({ where: { userId, avatarId: "haerin" }, data: { avatarId: "traveler", avatarRevision: { increment: 1 } } });
               if (prior)
                 await tx.userCharacter.update({
                   where: {
@@ -423,6 +425,7 @@ economyRouter.post("/:operation", async (req, res, next) => {
         { timeout: 15000 },
       ),
     );
+    if (operation === "team") await serial(() => refreshAvatar(res.locals.user.id));
     res.json({ receipt });
   } catch (error) {
     if (error instanceof WorldError) {

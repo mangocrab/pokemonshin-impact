@@ -1,0 +1,1 @@
+ALTER TABLE "UserSettings" ADD COLUMN "avatarId" TEXT NOT NULL DEFAULT 'traveler', ADD COLUMN "avatarRevision" INTEGER NOT NULL DEFAULT 0;

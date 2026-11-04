@@ -259,6 +259,8 @@ model EconomyMutation {
 }
 
 model UserSettings {
+  avatarId String @default("traveler")
+  avatarRevision Int @default(0)
   userId String @id
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   quality String @default("high")

@@ -1341,3 +1341,6 @@ input, select { accent-color:#376caa; }
 @keyframes skill-heal { from { opacity:0; transform:translateY(14px) scale(.75); } 35% { opacity:.8; } to { opacity:.35; transform:translateY(-10px) scale(1.08); } }
 @keyframes skill-shield { from { opacity:0; transform:scale(.45,.8); } 35% { opacity:.8; } to { opacity:.45; transform:scale(1.05); } }
 @keyframes skill-cast { from { opacity:0; transform:rotate(-18deg) scale(.8); } 35% { opacity:.7; } to { opacity:.35; transform:rotate(18deg) scale(1.05); } }
+
+.avatar-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; padding:10px; margin-block:10px; border:1px solid #c4d4d2; border-radius:10px; background:#f6fbfa; }
+.avatar-controls p { flex-basis:100%; margin:0; font-size:12px; }

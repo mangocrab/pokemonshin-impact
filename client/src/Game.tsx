@@ -1,3 +1,4 @@
+import type { AvatarId } from "../../shared/avatars";
 import { useEffect, useRef, useState } from "react";
 import Phaser from "phaser";
 import { CoastPresentation } from "./CoastPresentation";
@@ -151,7 +152,7 @@ export function Game({
         this.load.atlas("world-art", "/art/world.webp", "/art/world.json");
         this.load.atlas("terrain-art", "/art/terrain.webp", "/art/terrain.json");
         this.load.atlas("traveler-art", "/art/traveler.webp", "/art/traveler.json");
-        this.load.on("loaderror", () => setMessage("아트를 불러오지 못했습니다. 새로고침해 주세요."));
+        this.load.on("loaderror", (file: Phaser.Loader.File) => setMessage(file.key === "haerin-art" ? "해린 모습을 불러오지 못해 공통 여행자로 표시합니다." : "아트를 불러오지 못했습니다. 새로고침해 주세요."));
       }
       create() {
         this.presentation = new CoastPresentation(this);
@@ -209,7 +210,7 @@ export function Game({
         socket.on(
           "world:players",
           (
-            players: { userId: string; nickname: string; position: Position }[],
+            players: { userId: string; nickname: string; position: Position; avatarId?: AvatarId }[],
           ) => {
             setPlayerCount(players.length);
             for (const [id, sprite] of this.others) {
@@ -219,7 +220,7 @@ export function Game({
               }
             }
             for (const p of players) {
-              if (p.userId === ownId) continue;
+              if (p.userId === ownId) { this.presentation.appearance(this.player, p.avatarId ?? "traveler"); continue; }
               let sprite = this.others.get(p.userId);
               if (!sprite) {
                 sprite = this.add.container(p.position.x, p.position.y, [
@@ -236,6 +237,7 @@ export function Game({
                 this.others.set(p.userId, sprite);
                 this.presentation.traveler(sprite);
               }
+              this.presentation.appearance(sprite, p.avatarId ?? "traveler");
               sprite
                 .setPosition(p.position.x, p.position.y)
                 .setDepth(p.position.y);
@@ -251,6 +253,7 @@ export function Game({
             regions: unlocked,
             isOwner: host,
             userId,
+            avatarId,
             message: notice,
           }) => {
             ownId = userId;
@@ -267,6 +270,7 @@ export function Game({
             this.player.setPosition(position.x, position.y);
             this.cameras.main.centerOn(position.x, position.y - this.cameras.main.followOffset.y);
             this.presentation.traveler(this.player);
+            this.presentation.appearance(this.player, avatarId ?? "traveler");
             refreshChests(ids);
             window.dispatchEvent(new Event("story:world"));
             setMessage(notice ?? "위치와 탐험 상태를 불러왔습니다.");
@@ -295,6 +299,10 @@ export function Game({
         // Renderer diagnostics: report the selected texture frames without exposing game state or controls.
         if (host.current) {
           const frame = String((this.player.getByName("traveler-body") as Phaser.GameObjects.Image).frame.name);
+          const actualAvatar = this.presentation.travelerAppearance(this.player);
+          if (host.current.dataset.travelerAvatar !== actualAvatar) host.current.dataset.travelerAvatar = actualAvatar;
+          const visitorAvatars = JSON.stringify([...this.others.values()].map(sprite => this.presentation.travelerAppearance(sprite)));
+          if (host.current.dataset.visitorAvatars !== visitorAvatars) host.current.dataset.visitorAvatars = visitorAvatars;
           const visitors = JSON.stringify([...this.others.values()].map((sprite) => String((sprite.getByName("traveler-body") as Phaser.GameObjects.Image).frame.name)));
           if (host.current.dataset.travelerFrame !== frame) host.current.dataset.travelerFrame = frame;
           if (host.current.dataset.visitorFrames !== visitors) host.current.dataset.visitorFrames = visitors;

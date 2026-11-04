@@ -1,3 +1,4 @@
+import { avatarRouter } from "./avatar.js";
 import { adventureRouter } from "./adventure.js";
 import { registerStory } from "./story.js";
 import { settingsRouter } from "./settings.js";
@@ -214,6 +215,7 @@ app.use("/api/social", socialRouter);
 app.use("/api/training", trainingRouter);
 app.use("/api/economy", economyRouter);
 app.use("/api/settings", settingsRouter);
+app.use("/api/avatar", avatarRouter);
 app.use("/api/battle", registerCombat(io));
 app.use("/api/coop", registerCoop(io));
 app.use("/api/story", registerStory(io));

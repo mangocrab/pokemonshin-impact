@@ -1,3 +1,5 @@
+import { avatarState } from "./avatar-store.js";
+import type { AvatarId } from "../../shared/avatars.js";
 import { SANCTUARY, SANCTUARY_CHEST } from "../../shared/adventure.js";
 import { recordChestDiscovery } from "./story-store.js";
 import { ensureEconomy, addItem } from "./economy-store.js";
@@ -13,6 +15,7 @@ import {
   type Position,
 } from "../../shared/world.js";
 export type Actor = {
+  avatarId: AvatarId;
   battleId?: string;
   userId: string;
   nickname: string;
@@ -56,7 +59,8 @@ async function acquire(userId: string, worldId: string, socketId: string) {
         where: { id: worldId },
         include: { owner: { select: { nickname: true } }, regions: true },
       })
-      .then((world) => ({
+      .then(async (world) => ({
+        avatarId: (await avatarState(userId)).avatarId,
         userId,
         nickname: world.owner.nickname,
         homeWorldId: worldId,
@@ -205,6 +209,7 @@ export function registerExploration(io: Server) {
         opened: chests,
         isOwner: actor.worldId === actor.homeWorldId,
         userId: actor.userId,
+        avatarId: actor.avatarId,
       });
       await broadcastPlayers(actor.worldId);
       notifySocial();
@@ -298,6 +303,7 @@ export async function broadcastPlayers(worldId: string) {
     .map((a) => ({
       userId: a.userId,
       nickname: a.nickname,
+      avatarId: a.avatarId,
       position: a.position,
       isOwner: a.homeWorldId === worldId,
     }));
@@ -353,6 +359,7 @@ export async function switchWorld(
         opened,
         isOwner: worldId === actor.homeWorldId,
         userId: actor.userId,
+        avatarId: actor.avatarId,
         message,
       });
     }
@@ -398,4 +405,11 @@ export async function refreshRegions(worldId: string) {
   const regions = (await db.worldRegion.findMany({ where: { worldId } })).map((r) => r.regionId);
   for (const actor of await onlineActors()) if (actor.worldId === worldId) actor.regions = [...regions];
   channel.to(`world:${worldId}`).emit("adventure:changed", { worldId, regions });
+}
+
+export async function refreshAvatar(userId: string) {
+  const actor = await getActor(userId);
+  if (!actor) return;
+  actor.avatarId = (await avatarState(userId)).avatarId;
+  await broadcastPlayers(actor.worldId);
 }

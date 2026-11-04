@@ -59,6 +59,11 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
       // This only bounds initial loading; the server's round deadlines are unchanged.
       await expect(p.getByRole("status"), `World readiness for co-op client ${i}`).toContainText("불러왔습니다", { timeout: 30000 });
     }
+    for (const p of pages) {
+      expect((await p.request.get("/api/training")).ok()).toBe(true);
+      expect((await p.request.put("/api/avatar", { data: { avatarId: "haerin", expectedRevision: 0 } })).ok()).toBe(true);
+      await expect(p.locator(".game")).toHaveAttribute("data-traveler-avatar", "haerin", { timeout: 15000 });
+    }
     const host = pages[0];
     await host.request.post("/api/social/access", {
       data: { access: "request" },
@@ -83,7 +88,7 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
       await expect.poll(async () => {
         const state = await p.locator(".game").getAttribute("data-object-relief");
         return state ? JSON.parse(state) : null;
-      }, { timeout: 15000 }).toMatchObject({ objects: 21, visibleObjects: 20, atlases: 2, normalFrames: 24, litObjects: 21, projectedShadows: 20 });
+      }, { timeout: 15000 }).toMatchObject({ objects: 21, visibleObjects: 20, atlases: 3, normalFrames: 36, litObjects: 21, projectedShadows: 20 });
     }
     await host
       .getByRole("button", { name: "협동 보스전 모집", exact: true })

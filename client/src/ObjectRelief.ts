@@ -1,10 +1,11 @@
 import Phaser from "phaser";
+import { HAERIN_AVATAR } from "./avatar-manifest";
 import { ART } from "./art-manifest";
 import { buildNormalMap, shadowLayout, shadowRasterSize, shadowBandWeights, SHADOW_BLURS, surfaceMaterial } from "../../shared/surface-relief";
 import { ReceiverShadows } from "./ReceiverShadows";
 import { worldAppearance } from "./world-appearance";
 
-type Atlas = "world" | "traveler";
+type Atlas = "world" | "traveler" | "haerin";
 type Binding = { sprite: Phaser.GameObjects.Image; shadow: Phaser.GameObjects.Image; frame: string };
 /** Per-frame procedural normal maps and alpha-projected ground shadows. No diffuse art edits. */
 export class ObjectRelief {
@@ -17,10 +18,11 @@ export class ObjectRelief {
   private highQuality = true;
   private receivers: ReceiverShadows;
   constructor(private scene: Phaser.Scene) { this.receivers = new ReceiverShadows(scene); }
-  private atlas(sprite: Phaser.GameObjects.Image): Atlas { return sprite.texture.key === "traveler-art" ? "traveler" : "world"; }
+  private atlas(sprite: Phaser.GameObjects.Image): Atlas { return sprite.texture.key === "haerin-art" ? "haerin" : sprite.texture.key === "traveler-art" ? "traveler" : "world"; }
+  private sheet(atlas: Atlas) { return atlas === "haerin" ? HAERIN_AVATAR : ART[atlas]; }
   private ensureNormals(atlas: Atlas) {
     if (this.normals.has(atlas)) return;
-    const sheet = ART[atlas], texture = this.scene.textures.get(`${atlas}-art`);
+    const sheet = this.sheet(atlas), texture = this.scene.textures.get(`${atlas}-art`);
     const source = texture.getSourceImage() as HTMLImageElement;
     const canvas = document.createElement("canvas"); canvas.width = sheet.width; canvas.height = sheet.height;
     const ctx = canvas.getContext("2d")!;
@@ -81,7 +83,7 @@ export class ObjectRelief {
     return { key, layout };
   }
   register(sprite: Phaser.GameObjects.Image) {
-    if (this.objects.has(sprite) || !["world-art", "traveler-art"].includes(sprite.texture.key)) return;
+    if (this.objects.has(sprite) || !["world-art", "traveler-art", "haerin-art"].includes(sprite.texture.key)) return;
     if (this.ready && this.lighting) this.ensureNormals(this.atlas(sprite));
     const shadow = this.scene.add.image(sprite.x, sprite.y, "__DEFAULT").setVisible(false).setAlpha(.18).setDepth(-2);
     this.objects.set(sprite, { sprite, shadow, frame: "" });
@@ -111,6 +113,7 @@ export class ObjectRelief {
   }
   private sync(binding: Binding) {
     const { sprite, shadow } = binding;
+    if (this.ready && this.lighting) this.ensureNormals(this.atlas(sprite));
     if (!this.ready || !this.castShadows) { shadow.setVisible(false); return; }
     const { key, layout } = this.shadowTexture(sprite);
     if (binding.frame !== key) { shadow.setTexture(key).setOrigin(layout.originX, layout.originY); binding.frame = key; }
@@ -125,7 +128,7 @@ export class ObjectRelief {
   receivingState(sprite: Phaser.GameObjects.Image) { return this.receivers.state(sprite); }
   get summary() { return { objects: this.objects.size,
     visibleObjects: [...this.objects.values()].filter(b => worldAppearance(b.sprite).visible).length, atlases: this.normals.size,
-    normalFrames: [...this.normals].reduce((n, atlas) => n + Object.keys(ART[atlas].frames).length, 0),
+    normalFrames: [...this.normals].reduce((n, atlas) => n + Object.keys(this.sheet(atlas).frames).length, 0),
     litObjects: [...this.objects.values()].filter((b) => b.sprite.lighting).length,
     projectedShadows: [...this.objects.values()].filter((b) => b.shadow.visible).length,
     cachedShadows: this.shadows.size, lighting: this.lighting, shadows: this.castShadows, occlusion: this.receivers.summary }; }

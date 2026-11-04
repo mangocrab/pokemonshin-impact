@@ -41,6 +41,13 @@ test("two players become friends, accept invitation and return on owner logout",
       await expect(p.getByRole("status")).toContainText("불러왔습니다", { timeout: 15000 });
     }
     const [host, guest] = pages;
+    await guest.getByRole("button", { name: "캐릭터", exact: true }).click();
+    const characters = guest.getByRole("dialog", { name: "캐릭터", exact: true });
+    await characters.getByLabel("탐험 모습", { exact: true }).selectOption("haerin");
+    await characters.getByRole("button", { name: "탐험 모습 저장", exact: true }).click();
+    await expect(characters.getByText("탐험 모습을 저장했습니다.", { exact: true })).toBeVisible();
+    await characters.getByRole("button", { name: "닫기", exact: true }).click();
+    await expect(guest.locator(".game")).toHaveAttribute("data-traveler-avatar", "haerin");
     const rendering = (p: Page) => p.locator(".game").evaluate(el => JSON.parse((el as HTMLElement).dataset.objectRelief!));
     await expect.poll(async () => (await rendering(host)).groundContacts.objects).toBeGreaterThan(0);
     const baseline = await rendering(host);
@@ -69,6 +76,8 @@ test("two players become friends, accept invitation and return on owner logout",
     ).toHaveCount(0);
     await host.getByRole("button", { name: "닫기", exact: true }).click();
     await expect(host.getByText("내 월드 · 2/4")).toBeVisible();
+    await expect(host.locator(".game")).toHaveAttribute("data-visitor-avatars", '["haerin"]');
+    await expect(guest.locator(".game")).toHaveAttribute("data-visitor-avatars", '["traveler"]');
     for (const p of [host, guest]) {
       await expect.poll(async () => (await rendering(p)).objects).toBe(baseline.objects + 1);
       await expect.poll(async () => (await rendering(p)).groundContacts.objects).toBe(baseline.groundContacts.objects + 1);
@@ -78,7 +87,7 @@ test("two players become friends, accept invitation and return on owner logout",
       read();
       const observer = new MutationObserver(read);
       observer.observe(el, { attributes: true, attributeFilter: [name] });
-      setTimeout(() => { observer.disconnect(); resolve([...seen]); }, 900);
+      setTimeout(() => { observer.disconnect(); resolve([...seen]); }, 3000);
     }), attribute);
     // Polling can alias short idle/walk phases; observe every actual frame change instead.
     const observed = Promise.all([observeFrames(guest, "data-traveler-frame"), observeFrames(host, "data-visitor-frames")]);
@@ -94,6 +103,7 @@ test("two players become friends, accept invitation and return on owner logout",
     await expect(guest.getByText("내 월드 · 1/4")).toBeVisible();
     await expect.poll(async () => (await rendering(guest)).objects).toBe(baseline.objects);
     await expect.poll(async () => (await rendering(guest)).groundContacts.objects).toBe(baseline.groundContacts.objects);
+    await expect(guest.locator(".game")).toHaveAttribute("data-traveler-avatar", "haerin");
     expect(errors).toEqual([]);
   } finally {
     for (const p of pages) await p.request.post("/api/logout").catch(() => {});

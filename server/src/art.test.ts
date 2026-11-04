@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, statSync } from "node:fs";
+import { HAERIN_AVATAR } from "../../client/src/avatar-manifest.js";
+import { effectiveAvatar } from "../../shared/avatars.js";
 import { ART } from "../../client/src/art-manifest.js";
 import { CHARACTERS, ENCOUNTERS } from "../../shared/combat.js";
 import { NPCS } from "../../shared/story.js";
@@ -37,5 +39,27 @@ test("shipping art atlases cover the live roster/world, stay inside their sheets
     }
     total += statSync(path).size;
   }
+  total += statSync("client/public/art/haerin-avatar.webp").size;
   assert.ok(total < 2 * 1024 * 1024, `Art download is ${total} bytes`);
+});
+
+test("Haerin's optional atlas keeps twelve distinct frames and one foot plane without stretching cells", () => {
+  const atlas = JSON.parse(readFileSync("client/public/art/haerin-avatar.json", "utf8"));
+  assert.deepEqual(atlas.meta.size, { w: HAERIN_AVATAR.width, h: HAERIN_AVATAR.height });
+  const cells = new Set<string>();
+  for (const direction of TRAVELER_DIRECTIONS) for (const step of [0, 1, 2]) {
+    const id = `${direction}-${step}` as keyof typeof HAERIN_AVATAR.frames, f = atlas.frames[id]; cells.add(JSON.stringify(f.frame));
+    assert.equal(f.trimmed, true); assert.deepEqual(f.sourceSize, { w: 342, h: 384 });
+    assert.equal(f.spriteSourceSize.y + f.spriteSourceSize.h, 376);
+    assert.ok(f.spriteSourceSize.x >= 0 && f.spriteSourceSize.x + f.frame.w <= 342);
+    assert.ok(f.spriteSourceSize.y >= 0); assert.deepEqual(f.frame, HAERIN_AVATAR.frames[id]);
+    assert.ok(f.frame.x >= 0 && f.frame.y >= 0 && f.frame.x + f.frame.w <= HAERIN_AVATAR.width && f.frame.y + f.frame.h <= HAERIN_AVATAR.height);
+  }
+  assert.equal(cells.size, 12);
+});
+test("only the supported and equipped hero can replace the common traveler", () => {
+  assert.equal(effectiveAvatar("haerin", true), "haerin");
+  assert.equal(effectiveAvatar("haerin", false), "traveler");
+  assert.equal(effectiveAvatar("luna", true), "traveler");
+  assert.equal(effectiveAvatar("traveler", true), "traveler");
 });

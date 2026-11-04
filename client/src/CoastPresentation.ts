@@ -1,3 +1,6 @@
+import { HAERIN_AVATAR } from "./avatar-manifest";
+import { TRAVELER_DISPLAY_SIZE } from "../../shared/art-layout";
+import type { AvatarId } from "../../shared/avatars";
 import { ART } from "./art-manifest";
 import Phaser from "phaser";
 import { graphicsOptions, type GameSettings } from "../../shared/settings";
@@ -73,6 +76,9 @@ export class CoastPresentation {
   private quality: "high" | "low" = "high";
   private travelers = new Map<Phaser.GameObjects.Container, TravelerStep>();
   private relief: ObjectRelief;
+  private appearances = new Map<Phaser.GameObjects.Container, AvatarId>();
+  private avatarLoading = false;
+  private avatarFailed = false;
   constructor(private scene: Phaser.Scene) {
     this.relief = new ObjectRelief(scene);
     this.contacts = new GroundContacts(scene);
@@ -99,8 +105,26 @@ export class CoastPresentation {
   traveler(sprite: Phaser.GameObjects.Container) {
     const registered = this.travelers.has(sprite);
     this.travelers.set(sprite, { x: sprite.x, y: sprite.y, phase: 0, movingUntil: 0, direction: "south" });
-    if (!registered) sprite.once("destroy", () => this.travelers.delete(sprite));
+    if (!registered) {
+      this.appearances.set(sprite, "traveler");
+      sprite.once("destroy", () => { this.travelers.delete(sprite); this.appearances.delete(sprite); });
+    }
     this.relief.register(sprite.getByName("traveler-body") as Phaser.GameObjects.Image);
+  }
+  appearance(sprite: Phaser.GameObjects.Container, avatar: AvatarId = "traveler") {
+    const changed = this.appearances.get(sprite) !== avatar;
+    this.appearances.set(sprite, avatar);
+    if (changed && avatar === "haerin") this.avatarFailed = false;
+    if (avatar !== "haerin" || this.scene.textures.exists("haerin-art") || this.avatarLoading || this.avatarFailed) return;
+    this.avatarLoading = true;
+    const failed = (file: Phaser.Loader.File) => { if (file.key === "haerin-art") this.avatarFailed = true; };
+    this.scene.load.once("complete", () => { this.avatarLoading = false; this.scene.load.off("loaderror", failed); });
+    this.scene.load.on("loaderror", failed);
+    this.scene.load.atlas("haerin-art", HAERIN_AVATAR.url, HAERIN_AVATAR.atlas);
+    if (!this.scene.load.isLoading()) this.scene.load.start();
+  }
+  travelerAppearance(sprite: Phaser.GameObjects.Container) {
+    return (sprite.getByName("traveler-body") as Phaser.GameObjects.Image).texture.key === "haerin-art" ? "haerin" : "traveler";
   }
   shadow(sprite: Phaser.GameObjects.Ellipse) { return this.contacts.register(sprite); }
   foliage(sprite: Phaser.GameObjects.Image, angle: number) {
@@ -134,7 +158,10 @@ export class CoastPresentation {
       const step = travelerStep(old, sprite, time);
       this.travelers.set(sprite, active ? step : { ...step, movingUntil: 0 });
       const body = sprite.getByName("traveler-body") as Phaser.GameObjects.Image;
-      body.setFrame(travelerFrame(step, time, active && this.options.motion)).setY(5).setAngle(0).setFlipX(false);
+      const frame = travelerFrame(step, time, active && this.options.motion);
+      const texture = this.appearances.get(sprite) === "haerin" && this.scene.textures.exists("haerin-art") ? "haerin-art" : "traveler-art";
+      if (body.texture.key !== texture) body.setTexture(texture, frame); else body.setFrame(frame);
+      body.setScale(TRAVELER_DISPLAY_SIZE / body.frame.realHeight).setY(5).setAngle(0).setFlipX(false);
     }
     this.relief.update(); this.contacts.update();
     if (!active || !this.options.motion || time - this.last < (this.quality === "low" ? 100 : 33)) return;

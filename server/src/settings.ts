@@ -20,7 +20,7 @@ settingsRouter.use(async (req, res, next) => {
   next();
 });
 function publicSettings(row: Awaited<ReturnType<typeof db.userSettings.findUniqueOrThrow>>) {
-  const { userId: _, updatedAt: __, ...settings } = row;
+  const { userId: _, updatedAt: __, avatarId: ___, avatarRevision: ____, ...settings } = row;
   return settings;
 }
 async function ensure(userId: string) {

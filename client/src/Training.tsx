@@ -1,3 +1,4 @@
+import { AvatarControls } from "./AvatarControls";
 import { ArtIcon } from "./ArtIcon";
 import { Art } from "./Art";
 import { useCallback, useEffect, useState } from "react";
@@ -115,6 +116,7 @@ export function Characters({ onClose }: { onClose: () => void }) {
         <p className="training-message" role="status">
           {message}
         </p>
+        {characters.length > 0 && <AvatarControls />}
         <div className="character-tabs">
           {characters.map((c) => (
             <button
