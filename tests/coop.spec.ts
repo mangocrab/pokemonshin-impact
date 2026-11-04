@@ -53,6 +53,7 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
       const p = await c.newPage();
       pages.push(p);
       p.on("pageerror", (e) => errors.push(e.message));
+      await p.addInitScript(() => { (window as any).__coopSoundIntents = []; window.addEventListener("audio:cue", e => (window as any).__coopSoundIntents.push((e as CustomEvent).detail)); });
       await p.goto("/");
       // Four high-quality software WebGL contexts share one GPU in this runner.
       // This only bounds initial loading; the server's round deadlines are unchanged.
@@ -105,6 +106,7 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
           exact: true,
         }),
       ).toBeVisible();
+    for (const p of pages) expect(await p.evaluate(() => (window as any).__coopSoundIntents)).toEqual([]);
     const original = await fight(host)
       .getByRole("progressbar", { name: "산호 수호게 HP", exact: true })
       .getAttribute("aria-valuenow");
@@ -114,6 +116,7 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
     await expect(
       fight(host).getByRole("note").filter({ hasText: "다른 참가자" }),
     ).toContainText("다른 참가자");
+    expect(await host.evaluate(() => (window as any).__coopSoundIntents)).toEqual([]);
     await expect(
       fight(host).getByRole("button", { name: /^물결 쏘기/ }),
     ).toBeDisabled();
@@ -135,6 +138,7 @@ test("four real browsers consent, synchronize one round, auto-wait recharge and 
           exact: true,
         }),
       ).toBeVisible();
+    for (const p of pages) await expect.poll(() => p.evaluate(() => (window as any).__coopSoundIntents)).toEqual(["skill:물"]);
     // Round-one attacks are visible from each player's own perspective, even with identical heroes.
     for (let i = 0; i < pages.length; i++) {
       const snapshot = (await (await pages[i].request.get("/api/battle")).json()).battle;

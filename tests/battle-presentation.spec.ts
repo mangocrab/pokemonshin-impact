@@ -7,6 +7,7 @@ test("server results drive battle effects without replay, blocking input or igno
   test.setTimeout(60000);
   const db = new PrismaClient(), errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
+  await page.addInitScript(() => { (window as any).__battleSounds = []; window.addEventListener("audio:cue", e => (window as any).__battleSounds.push((e as CustomEvent).detail)); });
   const u = await db.user.create({ data: { username: `webVfx_${testInfo.project.name}_${Date.now()}`, nickname: "별빛 여행자", passwordHash: "fixture-unused", world: { create: {} } } });
   try {
     const token = randomBytes(32).toString("hex");
@@ -28,7 +29,9 @@ test("server results drive battle effects without replay, blocking input or igno
       await expect(field.locator(".result-chips")).toHaveCount(0);
     };
     await start();
+    expect(await page.evaluate(() => (window as any).__battleSounds)).toEqual([]);
     const before = await state(), after = await act(/^물결 쏘기/);
+    await expect.poll(() => page.evaluate(() => (window as any).__battleSounds.at(-1))).toBe("skill:물");
     const enemyChip = field.locator(".combatant").nth(1).locator('[data-result="damage"]');
     await expect(enemyChip).toHaveText(`HP −${before.enemy.hp - after.enemy.hp}`);
     await expect(field).toHaveAttribute("data-motion", "true");
@@ -41,9 +44,14 @@ test("server results drive battle effects without replay, blocking input or igno
     await field.screenshot({ path: testInfo.outputPath("resolved-water-skill.png") });
     await expect(field.locator(".result-chips")).toHaveCount(0, { timeout: 5000 });
     await expect(field.locator(".skill-effects")).toHaveCount(0);
+    const heard = await page.evaluate(() => (window as any).__battleSounds.length);
     await page.evaluate((snapshot) => window.dispatchEvent(new CustomEvent("battle:state", { detail: snapshot })), after);
     await expect(field.locator(".result-chips")).toHaveCount(0); await expect(field.locator(".skill-effects")).toHaveCount(0);
+    await page.evaluate(snapshot => window.dispatchEvent(new CustomEvent("battle:state", { detail: snapshot })), before);
+    await page.evaluate(snapshot => window.dispatchEvent(new CustomEvent("battle:state", { detail: snapshot })), after);
+    expect(await page.evaluate(() => (window as any).__battleSounds.length)).toBe(heard);
     await page.reload(); await expect(fight).toBeVisible();
+    expect(await page.evaluate(() => (window as any).__battleSounds)).toEqual([]);
     await expect(field.locator(".result-chips")).toHaveCount(0); await expect(field.locator(".skill-effects")).toHaveCount(0);
     await act(/^도주/); await fight.getByRole("button", { name: "탐험으로 돌아가기", exact: true }).click();
     await start();
@@ -51,6 +59,7 @@ test("server results drive battle effects without replay, blocking input or igno
     for (let i = 0; i < 8 && current.team[0].energy < 100; i++) current = await act(/^방어/);
     await expect(fight.getByRole("button", { name: /^궁극기/ })).toBeEnabled();
     const ultimate = await act(/^궁극기/);
+    await expect.poll(() => page.evaluate(() => (window as any).__battleSounds.at(-1))).toBe("heal");
     const burst = field.locator(".burst-cut-in");
     await expect(burst).toContainText("바다가 품은 약속");
     await expect(burst).toHaveAttribute("data-character", "haerin");

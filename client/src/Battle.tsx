@@ -2,6 +2,7 @@ import { ArtIcon } from "./ArtIcon";
 import { Art } from "./Art";
 import { useBattlePresentation, ResultChips, BurstCutIn } from "./BattleFeedback";
 import { SkillEffects } from "./SkillEffects";
+import { battleSound } from "../../shared/sound";
 import { CONSUMABLES, itemUnavailable } from "../../shared/items";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
@@ -47,13 +48,11 @@ export function Battle({
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
-  const audibleVersion = useRef("");
+  const audiblePrevious = useRef<BattleState | null>(null);
   useEffect(() => {
-    const key = battle ? `${battle.id}:${battle.version}` : "";
-    if (key && key !== audibleVersion.current) {
-      window.dispatchEvent(new CustomEvent("audio:cue", { detail: battle?.status === "won" ? "victory" : "battle" }));
-    }
-    audibleVersion.current = key;
+    const cue = battleSound(audiblePrevious.current, battle);
+    audiblePrevious.current = battle;
+    if (cue) window.dispatchEvent(new CustomEvent("audio:cue", { detail: cue }));
   }, [battle?.id, battle?.version]);
   const [items, setItems] = useState<Record<string, number> | null>(null), [itemError, setItemError] = useState("");
   const itemReads = useRef(0);

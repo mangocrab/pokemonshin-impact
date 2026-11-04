@@ -1,5 +1,7 @@
 import { useEffect, useRef } from "react";
 import type { GameSettings } from "../../shared/settings";
+import { MAX_SOUND_VOICES, soundPattern } from "../../shared/sound";
+import { synthesizePattern } from "./sound-synthesis";
 /** Small original synthesized sounds. Audio is created only after a user gesture. */
 export function Soundscape({ settings }: { settings: GameSettings }) {
   const current = useRef(settings), engine = useRef<{ sync: () => void } | null>(null);
@@ -8,7 +10,7 @@ export function Soundscape({ settings }: { settings: GameSettings }) {
   useEffect(() => {
     let context: AudioContext | undefined, master: GainNode | undefined;
     let noise: AudioBufferSourceNode | undefined, surf: GainNode | undefined;
-    let lastCue = 0, closed = false;
+    let lastCue = -Infinity, closed = false, gestureUnlocked = false;
     const voices = new Set<OscillatorNode>();
     const allowed = () => !current.current.muted && current.current.volume > 0 && !document.hidden;
     const sync = () => {
@@ -23,7 +25,7 @@ export function Soundscape({ settings }: { settings: GameSettings }) {
       }
     };
     const unlock = () => {
-      if (closed || !allowed()) return;
+      if (closed || !gestureUnlocked || !allowed()) return;
       if (!context && typeof AudioContext !== "undefined") {
         try {
           context = new AudioContext(); master = context.createGain(); master.gain.value = 0;
@@ -38,32 +40,26 @@ export function Soundscape({ settings }: { settings: GameSettings }) {
       }
       sync();
     };
+    const gesture = (event: Event) => {
+      if (!event.isTrusted) return;
+      gestureUnlocked = true; unlock();
+    };
     const cue = (event: Event) => {
-      if (!allowed() || performance.now() - lastCue < 100) return;
+      const pattern = soundPattern((event as CustomEvent<unknown>).detail);
+      if (!pattern || !gestureUnlocked || !allowed() || performance.now() - lastCue < 100) return;
       unlock();
-      if (!context || !master || voices.size >= 6) return;
+      if (!context || !master || voices.size + pattern.notes.length > MAX_SOUND_VOICES) return;
       lastCue = performance.now();
-      const notes = (event as CustomEvent<string>).detail === "treasure" ? [523.25, 659.25, 783.99] : (event as CustomEvent<string>).detail === "victory" ? [392, 523.25, 783.99] : [220, 329.63];
-      const start = context.currentTime;
-      notes.forEach((frequency, i) => {
-        const oscillator = context!.createOscillator(), gain = context!.createGain();
-        oscillator.type = "sine"; oscillator.frequency.value = frequency;
-        gain.gain.setValueAtTime(0, start + i * 0.065);
-        gain.gain.linearRampToValueAtTime(0.35, start + i * 0.065 + 0.015);
-        gain.gain.exponentialRampToValueAtTime(0.001, start + i * 0.065 + 0.28);
-        oscillator.connect(gain); gain.connect(master!); voices.add(oscillator);
-        oscillator.onended = () => { voices.delete(oscillator); oscillator.disconnect(); gain.disconnect(); };
-        oscillator.start(start + i * 0.065); oscillator.stop(start + i * 0.065 + 0.3);
-      });
+      synthesizePattern(context, master, pattern, { onVoice: voice => { voices.add(voice); }, onEnded: voice => { voices.delete(voice); } });
     };
     engine.current = { sync };
-    window.addEventListener("pointerdown", unlock);
-    window.addEventListener("keydown", unlock);
+    window.addEventListener("pointerdown", gesture);
+    window.addEventListener("keydown", gesture);
     window.addEventListener("audio:cue", cue);
     document.addEventListener("visibilitychange", sync);
     return () => {
       closed = true; engine.current = null;
-      window.removeEventListener("pointerdown", unlock); window.removeEventListener("keydown", unlock);
+      window.removeEventListener("pointerdown", gesture); window.removeEventListener("keydown", gesture);
       window.removeEventListener("audio:cue", cue); document.removeEventListener("visibilitychange", sync);
       noise?.stop(); for (const voice of voices) voice.stop();
       if (context) void context.close().catch(() => {});
