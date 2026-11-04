@@ -1295,9 +1295,49 @@ input, select { accent-color:#376caa; }
 .battle-field[data-motion="true"][data-effects="true"] .skill-effect:not([data-kind="miss"]) .skill-aura { animation:skill-resolve .7s ease-out both; }
 .battle-field[data-motion="true"] .skill-caption { animation:skill-caption .35s ease-out both; }
 @keyframes skill-resolve { from { opacity:0; transform:scale(.55); } 35% { opacity:.8; } to { opacity:.35; transform:scale(1.12); } }
-@keyframes skill-caption { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
+@keyframes skill-caption { from { opacity:0; transform:translateY(3px); } to { opacity:1; transform:translateY(0); } }
 @media (max-width:700px) { .skill-caption b { font-size:9px; } .skill-caption small { font-size:9px; } .skill-aura { width:58px; height:58px; bottom:25px; } .skill-aura .art-icon { width:28px; height:28px; } }
 @media (prefers-reduced-motion:reduce) { .battle-field .skill-aura,.battle-field .skill-caption { animation:none !important; } }
 .skill-overflow { align-self:center; padding:2px 5px; border-radius:4px; color:#fff5dc; background:#162d49ed; font-size:9px; text-align:center; }
 
 .combatant-art { position:relative; }
+
+/* Short, single-pass target effects. They summarize resolved casts, not projectile timing. */
+.skill-aura::before,.skill-aura::after { content:""; position:absolute; inset:6px; border:1px solid currentColor; border-radius:inherit; opacity:.35; pointer-events:none; }
+.skill-aura::after { inset:13px; opacity:.2; }
+.skill-effect[data-kind="attack"][data-element="물"] .skill-aura::before { inset:-6px; border-radius:50%; transform:scaleY(.65); }
+.skill-effect[data-kind="attack"][data-element="물"] .skill-aura::after { border-style:dotted; }
+.skill-effect[data-kind="attack"][data-element="불"] .skill-aura::before { inset:0; border:0; border-radius:0; background:currentColor; clip-path:polygon(50% 0,65% 30%,78% 15%,86% 58%,100% 78%,68% 100%,23% 90%,0 64%,26% 52%,20% 20%,42% 38%); opacity:.18; }
+.skill-effect[data-kind="attack"][data-element="불"] .skill-aura::after { transform:rotate(20deg); border-bottom-color:transparent; }
+.skill-effect[data-kind="attack"][data-element="바람"] .skill-aura::before { inset:-4px; border-right-color:transparent; border-bottom-color:transparent; transform:rotate(-25deg); }
+.skill-effect[data-kind="attack"][data-element="바람"] .skill-aura::after { border-left-color:transparent; border-top-color:transparent; transform:rotate(15deg); }
+.skill-effect[data-kind="attack"][data-element="번개"] .skill-aura::before { inset:0 12px; border:0; border-radius:0; background:currentColor; clip-path:polygon(60% 0,5% 56%,43% 56%,28% 100%,95% 38%,55% 38%,75% 0); opacity:.22; }
+.skill-effect[data-kind="attack"][data-element="번개"] .skill-aura::after { transform:rotate(45deg); border-radius:3px; }
+.skill-effect[data-kind="attack"][data-element="얼음"] .skill-aura::before { inset:0; border:0; border-radius:0; background:currentColor; clip-path:polygon(50% 0,62% 35%,94% 25%,72% 50%,94% 75%,62% 65%,50% 100%,38% 65%,6% 75%,28% 50%,6% 25%,38% 35%); opacity:.18; }
+.skill-effect[data-kind="attack"][data-element="얼음"] .skill-aura::after { border-radius:0; transform:rotate(45deg); }
+.skill-effect[data-kind="attack"][data-element="자연"] .skill-aura::before { border-radius:85% 0 85% 0; transform:rotate(-20deg); }
+.skill-effect[data-kind="attack"][data-element="자연"] .skill-aura::after { border-radius:85% 0 85% 0; transform:rotate(70deg); }
+.skill-effect[data-kind="heal"] .skill-aura::before { inset:23%; border:0; border-radius:0; background:linear-gradient(transparent 38%,currentColor 38% 62%,transparent 62%),linear-gradient(90deg,transparent 38%,currentColor 38% 62%,transparent 62%); opacity:.28; }
+.skill-effect[data-kind="heal"] .skill-aura::after { inset:-5px; border-style:dotted; border-radius:50%; }
+.skill-effect[data-kind="shield"] .skill-aura::before { border-width:2px; }
+.skill-effect[data-kind="shield"] .skill-aura::after { border-top-color:transparent; }
+.skill-effect[data-kind="status"] .skill-aura::before { inset:-4px; border-style:dashed; }
+.skill-effect[data-kind="status"] .skill-aura::after { border-style:dotted; }
+.battle-field[data-motion="true"][data-effects="true"] .skill-effect[data-kind="attack"][data-element="물"] .skill-aura { animation-name:skill-water; }
+.battle-field[data-motion="true"][data-effects="true"] .skill-effect[data-kind="attack"][data-element="불"] .skill-aura { animation-name:skill-flame; }
+.battle-field[data-motion="true"][data-effects="true"] .skill-effect[data-kind="attack"][data-element="바람"] .skill-aura { animation-name:skill-gust; }
+.battle-field[data-motion="true"][data-effects="true"] .skill-effect[data-kind="attack"][data-element="번개"] .skill-aura { animation-name:skill-bolt; }
+.battle-field[data-motion="true"][data-effects="true"] .skill-effect[data-kind="attack"][data-element="얼음"] .skill-aura { animation-name:skill-crystal; }
+.battle-field[data-motion="true"][data-effects="true"] .skill-effect[data-kind="attack"][data-element="자연"] .skill-aura { animation-name:skill-leaf; }
+.battle-field[data-motion="true"][data-effects="true"] .skill-effect[data-kind="heal"] .skill-aura { animation-name:skill-heal; }
+.battle-field[data-motion="true"][data-effects="true"] .skill-effect[data-kind="shield"] .skill-aura { animation-name:skill-shield; }
+.battle-field[data-motion="true"][data-effects="true"] .skill-effect[data-kind="status"] .skill-aura { animation-name:skill-cast; }
+@keyframes skill-water { from { opacity:0; transform:scale(.6,.4); } 35% { opacity:.8; } to { opacity:.35; transform:scale(1.15,.95); } }
+@keyframes skill-flame { from { opacity:0; transform:translateY(12px) scale(.7); } 35% { opacity:.8; } to { opacity:.35; transform:translateY(-7px) scale(1.08); } }
+@keyframes skill-gust { from { opacity:0; transform:translateX(-12px) rotate(-25deg); } 35% { opacity:.8; } to { opacity:.35; transform:translateX(10px) rotate(20deg); } }
+@keyframes skill-bolt { from { opacity:0; transform:scale(.8,.25) rotate(-8deg); } 35% { opacity:.8; } to { opacity:.35; transform:scale(1.05) rotate(0); } }
+@keyframes skill-crystal { from { opacity:0; transform:scale(.35) rotate(-30deg); } 35% { opacity:.8; } to { opacity:.35; transform:scale(1.1) rotate(0); } }
+@keyframes skill-leaf { from { opacity:0; transform:scale(.5) rotate(-35deg); } 35% { opacity:.8; } to { opacity:.35; transform:scale(1.08) rotate(15deg); } }
+@keyframes skill-heal { from { opacity:0; transform:translateY(14px) scale(.75); } 35% { opacity:.8; } to { opacity:.35; transform:translateY(-10px) scale(1.08); } }
+@keyframes skill-shield { from { opacity:0; transform:scale(.45,.8); } 35% { opacity:.8; } to { opacity:.45; transform:scale(1.05); } }
+@keyframes skill-cast { from { opacity:0; transform:rotate(-18deg) scale(.8); } 35% { opacity:.7; } to { opacity:.35; transform:rotate(18deg) scale(1.05); } }
